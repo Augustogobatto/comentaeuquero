@@ -44,6 +44,12 @@ const sidebarPt: DefaultTheme.Sidebar = {
       ],
     },
     {
+      text: 'Claude',
+      items: [
+        { text: 'Conectar ao Claude (MCP)', link: '/tutoriais/conectar-claude' },
+      ],
+    },
+    {
       text: 'Manutenção',
       items: [
         { text: 'Backup e atualização', link: '/tutoriais/backup-e-atualizacao' },
@@ -60,6 +66,7 @@ const sidebarPt: DefaultTheme.Sidebar = {
         { text: 'Gatilhos', link: '/referencia/gatilhos' },
         { text: 'Variáveis', link: '/referencia/variaveis' },
         { text: 'API', link: '/referencia/api' },
+        { text: 'MCP (Claude)', link: '/referencia/mcp' },
         { text: 'Configuração (.env)', link: '/referencia/env' },
       ],
     },

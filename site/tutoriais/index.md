@@ -21,6 +21,10 @@ Na ordem em que você vai precisar. Os três primeiros são obrigatórios; o res
 - [Criar um template](./criar-template): a mensagem aprovada pela Meta que abre conversa.
 - [Primeira transmissão](./primeira-transmissao): enviar para uma lista com ritmo e relatório.
 
+## Claude
+
+- [Conectar ao Claude (MCP)](./conectar-claude): operar a instância por conversa no Claude.ai, Claude Desktop ou Claude Code.
+
 ## Manutenção
 
 - [Backup e atualização](./backup-e-atualizacao)

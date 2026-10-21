@@ -81,6 +81,25 @@ se preferir no .env em vez do painel).
 
 Passo a passo com prints: <https://comentaeuquero.com/tutoriais/conectar-whatsapp>.
 
+## Conectar ao Claude (MCP)
+
+Desde a 1.9.0 a instância tem um servidor MCP próprio em `https://SEU-DOMINIO/mcp`.
+Com ele, o Claude (Claude.ai, Claude Desktop, Claude Code) ou qualquer cliente MCP opera
+a sua instância por conversa: "cria um fluxo que responde 'ebook' com este link",
+"quantos leads a 'mentoria' trouxe essa semana?", "manda o template da black friday pra
+quem tem a etiqueta comprador". É código do próprio CEQ: nada passa por servidor de terceiros.
+
+- **Claude.ai / Claude Desktop:** Configurações → Conectores → Adicionar conector
+  personalizado, URL `https://SEU-DOMINIO/mcp`. O Claude abre a instância, você entra
+  com a senha do painel e clica em Permitir (OAuth 2.1 com PKCE).
+- **Claude Code e outros clientes:** gere um token em **Configurações → Conectar ao
+  Claude** e use `claude mcp add --transport http ceq https://SEU-DOMINIO/mcp --header "Authorization: Bearer SEU_TOKEN"`.
+
+São 17 ferramentas (resultados, fluxos, leads, templates, transmissões). Fluxo criado por
+conversa nasce desligado; disparo de transmissão é sempre em duas etapas, com prévia
+(público, custo) e código de confirmação. Nenhuma ferramenta mostra token ou segredo.
+Detalhes: <https://comentaeuquero.com/tutoriais/conectar-claude>.
+
 ## Stack
 
 - Python 3.12, FastAPI e uvicorn

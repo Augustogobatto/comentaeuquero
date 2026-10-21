@@ -6,6 +6,7 @@ O que existe no comenta EU QUERO, tirado do código da versão 1.7.3. Para apren
 - [Gatilhos](./gatilhos): o que começa um fluxo e como a palavra-chave é reconhecida.
 - [Variáveis](./variaveis): o que dá pra escrever entre chaves nas mensagens.
 - [API](./api): as rotas HTTP da instância.
+- [MCP (Claude)](./mcp): as ferramentas que o Claude usa na instância.
 - [Configuração (.env)](./env): todas as variáveis de ambiente.
 
 Itens marcados **WhatsApp** fazem parte do canal novo, em construção. Eles descrevem o comportamento planejado e podem mudar até o lançamento.

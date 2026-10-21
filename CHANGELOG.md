@@ -3,6 +3,31 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [Não lançado] - 1.9.0
+
+### Adicionado — Conectar ao Claude (MCP)
+- Servidor MCP nativo em `/mcp` (Streamable HTTP, SDK oficial `mcp` 2.3.0), no mesmo
+  app e domínio do painel. Funciona com Claude.ai, Claude Desktop, Claude Code e
+  qualquer cliente MCP.
+- Acesso por token manual (Configurações → Conectar ao Claude: gerar, ver uma vez,
+  revogar; só o hash fica no banco) ou por OAuth 2.1 com PKCE e registro dinâmico,
+  exigido pelo conector do Claude.ai. A tela de consentimento é o login do painel.
+- 17 ferramentas: `resumo`, `listar_fluxos`, `ver_fluxo` (com envios por passo),
+  `listar_leads`, `ver_lead`, `listar_templates_whatsapp`, `listar_transmissoes`,
+  `ver_transmissao`, `estado_da_conta`, `criar_fluxo` (passos simples compilados no
+  grafo do editor, nasce desligado), `editar_mensagem_do_fluxo`, `ligar_desligar_fluxo`,
+  `adicionar_gatilho`, `etiquetar_lead`, `criar_template_whatsapp`,
+  `criar_transmissao` (rascunho) e `disparar_transmissao` (prévia + código de
+  confirmação). Prompt `montar_fluxo_de_lancamento`.
+- Cada chamada vira o evento `mcp_ferramenta` (nome e resultado, sem conteúdo).
+  Limite por minuto por acesso e trava por IP depois de falhas de autenticação.
+- Transmissão em **rascunho**: não sai até ser disparada (pelo Claude, com
+  confirmação, ou pelo botão Disparar no painel).
+
+### Corrigido
+- Fluxo criado por script com nó sem `position` quebrava o editor (o canvas ficava no
+  fluxo anterior). O editor e a API dão posição automática da esquerda pra direita.
+
 ## [1.8.0] - 2026-10-21
 
 ### Adicionado — WhatsApp
