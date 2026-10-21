@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS transmissoes (
     publico TEXT DEFAULT '{}',
     agendada_para TEXT DEFAULT '',       -- ISO UTC; vazio = já
     ritmo_por_minuto INTEGER DEFAULT 20,
-    status TEXT DEFAULT 'agendada',      -- agendada | enviando | pausada | concluida | cancelada
+    status TEXT DEFAULT 'agendada',      -- rascunho | agendada | enviando | pausada | concluida | cancelada
     proximo_em REAL DEFAULT 0,           -- epoch do próximo envio permitido pelo ritmo
     criado_em TEXT,
     iniciado_em TEXT DEFAULT '',
@@ -249,6 +249,37 @@ CREATE TABLE IF NOT EXISTS painel_sessions (
     criado_em TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     expira_em TEXT NOT NULL,
     ip TEXT DEFAULT ''
+);
+
+-- Acesso do Claude (MCP). Guardamos só o SHA-256 do token: ele é aleatório de 256
+-- bits, então não precisa do PBKDF2 lento da senha (que existe pra senha humana,
+-- adivinhável). `tipo`: manual (gerado em Configurações), acesso e renovacao (do
+-- login OAuth do Claude.ai). Revogar = apagar a linha.
+CREATE TABLE IF NOT EXISTS mcp_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hash TEXT NOT NULL UNIQUE,
+    tipo TEXT NOT NULL,                  -- manual | acesso | renovacao
+    cliente_id TEXT DEFAULT '',
+    cliente_nome TEXT DEFAULT '',
+    final TEXT DEFAULT '',               -- 4 últimos caracteres, pra reconhecer na tela
+    criado_em TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    expira_em TEXT DEFAULT '',           -- vazio = não vence (só o manual)
+    ultimo_uso TEXT DEFAULT ''
+);
+
+-- Clientes OAuth registrados sozinhos (registro dinâmico, RFC 7591). O Claude.ai se
+-- registra na primeira conexão; o dono só aprova no login do painel.
+CREATE TABLE IF NOT EXISTS mcp_clientes (
+    client_id TEXT PRIMARY KEY,
+    nome TEXT DEFAULT '',
+    dados TEXT NOT NULL DEFAULT '{}',    -- metadados do registro, como o cliente mandou
+    criado_em TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS mcp_codigos (
+    hash TEXT PRIMARY KEY,
+    dados TEXT NOT NULL,                 -- o pedido aprovado (PKCE, redirect, cliente)
+    expira_em TEXT NOT NULL
 );
 """
 
@@ -694,14 +725,25 @@ ORDENS_LEADS = {
 
 
 def list_leads(account_id, limit=200, keyword=None, segue=None, busca=None,
-               ordem="recente"):
+               ordem="recente", tag=None, desde=None, ate=None, offset=0):
     """Leads com filtro. Cada filtro é opcional e eles se combinam.
 
     keyword: só quem chegou por essa palavra
     segue:   1 só seguidores, 0 só quem não segue
     busca:   trecho do nome ou do @
+    tag:     só quem tem a etiqueta
+    desde/ate: ISO UTC, recorte pela primeira interação (first_ts)
     """
     onde, args = ["account_id=?"], [account_id]
+    if tag:
+        onde.append("EXISTS (SELECT 1 FROM lead_tags t WHERE t.lead_id=leads.id AND t.tag=?)")
+        args.append(tag)
+    if desde:
+        onde.append("first_ts>=?")
+        args.append(desde)
+    if ate:
+        onde.append("first_ts<?")
+        args.append(ate)
     if keyword:
         onde.append("last_keyword=?")
         args.append(keyword)
@@ -713,10 +755,10 @@ def list_leads(account_id, limit=200, keyword=None, segue=None, busca=None,
         alvo = f"%{busca.lower().strip().lstrip('@')}%"
         args += [alvo, alvo]
     ordenacao = ORDENS_LEADS.get(ordem, ORDENS_LEADS["recente"])
-    args.append(limit)
+    args += [limit, max(0, int(offset or 0))]
     return [dict(r) for r in conn().execute(
-        f"SELECT * FROM leads WHERE {' AND '.join(onde)} ORDER BY {ordenacao} LIMIT ?",
-        args)]
+        f"SELECT * FROM leads WHERE {' AND '.join(onde)} ORDER BY {ordenacao}, id DESC "
+        "LIMIT ? OFFSET ?", args)]
 
 
 def leads_resumo(account_id) -> dict:
@@ -1506,15 +1548,17 @@ def _transmissao_row(r) -> dict:
 
 
 def criar_transmissao(account_id, nome, template, idioma, categoria, variaveis, publico_,
-                      agendada_para, ritmo_por_minuto) -> int:
+                      agendada_para, ritmo_por_minuto, status="agendada") -> int:
+    """`status='rascunho'` cria parada: o worker só olha agendada/enviando, então o
+    rascunho não sai até alguém disparar (painel ou Claude, com confirmação)."""
     cur = conn().execute(
         """INSERT INTO transmissoes (account_id, nome, template, idioma, categoria, variaveis,
-                                     publico, agendada_para, ritmo_por_minuto, criado_em)
-           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                                     publico, agendada_para, ritmo_por_minuto, criado_em, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (account_id, nome, template, idioma, (categoria or "").lower(),
          json.dumps(variaveis or {}, ensure_ascii=False),
          json.dumps(publico_ or {}, ensure_ascii=False), agendada_para or "",
-         max(1, int(ritmo_por_minuto or 20)), now_iso()))
+         max(1, int(ritmo_por_minuto or 20)), now_iso(), status))
     conn().commit()
     return cur.lastrowid
 
@@ -1592,3 +1636,106 @@ def leads_com_campo(account_id, chave) -> list:
         """SELECT l.*, f.value AS valor FROM leads l JOIN lead_fields f ON f.lead_id=l.id
            WHERE l.account_id=? AND f.key=? AND TRIM(f.value)<>'' ORDER BY l.id""",
         (account_id, chave))]
+
+
+# ---------- acesso do Claude (MCP) ----------
+
+def _sha(valor: str) -> str:
+    import hashlib
+    return hashlib.sha256((valor or "").encode("utf-8")).hexdigest()
+
+
+def mcp_guardar_token(token, tipo, cliente_id="", cliente_nome="", expira_em="") -> int:
+    cur = conn().execute(
+        """INSERT INTO mcp_tokens (hash, tipo, cliente_id, cliente_nome, final, expira_em)
+           VALUES (?,?,?,?,?,?)""",
+        (_sha(token), tipo, cliente_id, cliente_nome[:80], token[-4:], expira_em))
+    conn().commit()
+    return cur.lastrowid
+
+
+def mcp_token(token, tipos=("manual", "acesso")):
+    """Linha do token se ele existe, é de um dos `tipos` e não venceu.
+
+    A busca é pelo hash (o índice UNIQUE), e o compare_digest no fim confirma em
+    tempo constante: ninguém mede quantos caracteres acertou."""
+    import hmac
+    if not token or len(token) > 512:
+        return None
+    h = _sha(token)
+    r = conn().execute("SELECT * FROM mcp_tokens WHERE hash=?", (h,)).fetchone()
+    if not r or not hmac.compare_digest(r["hash"], h) or r["tipo"] not in tipos:
+        return None
+    if r["expira_em"] and r["expira_em"] <= now_iso():
+        return None
+    return dict(r)
+
+
+def mcp_marcar_uso(token_id) -> None:
+    conn().execute("UPDATE mcp_tokens SET ultimo_uso=? WHERE id=?", (now_iso(), token_id))
+    conn().commit()
+
+
+def mcp_apagar_token(token_id) -> None:
+    conn().execute("DELETE FROM mcp_tokens WHERE id=?", (token_id,))
+    conn().commit()
+
+
+def mcp_apagar_tokens(tipos) -> int:
+    cur = conn().execute(f"DELETE FROM mcp_tokens WHERE tipo IN {_em(list(tipos))}", list(tipos))
+    conn().commit()
+    return cur.rowcount
+
+
+def mcp_apagar_do_cliente(cliente_id) -> None:
+    conn().execute("DELETE FROM mcp_tokens WHERE cliente_id=? AND tipo<>'manual'", (cliente_id,))
+    conn().commit()
+
+
+def mcp_tokens_ativos() -> list:
+    conn().execute("DELETE FROM mcp_tokens WHERE expira_em<>'' AND expira_em<=?", (now_iso(),))
+    conn().commit()
+    return [dict(r) for r in conn().execute(
+        "SELECT id, tipo, cliente_id, cliente_nome, final, criado_em, expira_em, ultimo_uso "
+        "FROM mcp_tokens ORDER BY id DESC")]
+
+
+def mcp_registrar_cliente(client_id, nome, dados: dict) -> None:
+    conn().execute("INSERT OR REPLACE INTO mcp_clientes (client_id, nome, dados) VALUES (?,?,?)",
+                   (client_id, (nome or "")[:80], json.dumps(dados, ensure_ascii=False)))
+    conn().commit()
+
+
+def mcp_cliente(client_id):
+    r = conn().execute("SELECT * FROM mcp_clientes WHERE client_id=?", (client_id or "",)).fetchone()
+    if not r:
+        return None
+    d = dict(r)
+    d["dados"] = json.loads(d["dados"] or "{}")
+    return d
+
+
+def mcp_contar_clientes() -> int:
+    return conn().execute("SELECT COUNT(*) FROM mcp_clientes").fetchone()[0]
+
+
+def mcp_guardar_codigo(codigo, dados: dict, expira_em) -> None:
+    conn().execute("DELETE FROM mcp_codigos WHERE expira_em<=?", (now_iso(),))
+    conn().execute("INSERT INTO mcp_codigos (hash, dados, expira_em) VALUES (?,?,?)",
+                   (_sha(codigo), json.dumps(dados, ensure_ascii=False), expira_em))
+    conn().commit()
+
+
+def mcp_ler_codigo(codigo):
+    r = conn().execute("SELECT * FROM mcp_codigos WHERE hash=?", (_sha(codigo),)).fetchone()
+    if not r or r["expira_em"] <= now_iso():
+        return None
+    return json.loads(r["dados"])
+
+
+def mcp_apagar_codigo(codigo) -> bool:
+    """Uso único: quem apagar primeiro leva. Duas trocas simultâneas do mesmo código
+    não geram dois tokens."""
+    cur = conn().execute("DELETE FROM mcp_codigos WHERE hash=?", (_sha(codigo),))
+    conn().commit()
+    return cur.rowcount > 0

@@ -526,18 +526,20 @@ def historico(desde: str = "", ate: str = "", tz: float = -3, por: str = "dia",
               flow: str = ""):
     """O funil dia a dia — é o relatório que antes só existia entrando no servidor.
 
-    `por`: dia, fluxo ou dia_fluxo. Dia sem evento nenhum não vira linha.
+    `por`: dia, fluxo, dia_fluxo ou total (uma linha só, pessoas distintas no
+    período inteiro: somar os dias contaria duas vezes quem voltou). Dia sem evento
+    nenhum não vira linha.
     """
     conta = _conta_ou_erro()
     colunas = {"dia": "date(ts, ?) AS dia",
                "fluxo": "COALESCE(NULLIF(rule_keyword,''),'(sem fluxo)') AS fluxo"}
     chaves = {"dia": ["dia"], "fluxo": ["fluxo"],
-              "dia_fluxo": ["dia", "fluxo"]}.get(por)
-    if not chaves:
-        raise HTTPException(400, "por deve ser dia, fluxo ou dia_fluxo")
+              "dia_fluxo": ["dia", "fluxo"], "total": []}.get(por)
+    if chaves is None:
+        raise HTTPException(400, "por deve ser dia, fluxo, dia_fluxo ou total")
     fuso = _fuso(tz)
     args = [fuso] if "dia" in chaves else []
-    sql = ("SELECT " + ", ".join(colunas[k] for k in chaves) + "," + COLUNAS_HISTORICO +
+    sql = ("SELECT " + "".join(colunas[k] + "," for k in chaves) + COLUNAS_HISTORICO +
            " FROM events WHERE (account_id=? OR account_id IS NULL)")
     args.append(conta["id"])
     sql += _janela(desde, ate, fuso, args)
@@ -545,7 +547,8 @@ def historico(desde: str = "", ate: str = "", tz: float = -3, por: str = "dia",
         sql += " AND rule_keyword=?"
         args.append(flow)
     grupo = ", ".join(str(i + 1) for i in range(len(chaves)))
-    sql += f" GROUP BY {grupo} ORDER BY {grupo}"
+    if grupo:
+        sql += f" GROUP BY {grupo} ORDER BY {grupo}"
     saida = []
     for r in db.conn().execute(sql, args):
         linha = dict(r)
