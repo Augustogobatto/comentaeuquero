@@ -1715,6 +1715,16 @@ def mcp_cliente(client_id):
     return d
 
 
+def mcp_limpar_clientes_sem_uso(horas=24) -> int:
+    """Cliente registrado há mais de `horas` que nunca recebeu token: registro
+    abandonado (ou enchimento de propósito). Sai pra abrir vaga no teto."""
+    cur = conn().execute(
+        "DELETE FROM mcp_clientes WHERE criado_em < ? AND client_id NOT IN "
+        "(SELECT cliente_id FROM mcp_tokens)", (in_seconds_iso(-horas * 3600),))
+    conn().commit()
+    return cur.rowcount
+
+
 def mcp_contar_clientes() -> int:
     return conn().execute("SELECT COUNT(*) FROM mcp_clientes").fetchone()[0]
 

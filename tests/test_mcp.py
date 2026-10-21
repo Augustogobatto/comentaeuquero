@@ -154,6 +154,7 @@ def test_oauth_completo_com_login_do_painel(client, conta_ig, monkeypatch):
         _login(client, monkeypatch)
         tela = client.get(caminho)
         assert "Permitir acesso?" in tela.text and "claude.ai" in tela.text
+        assert tela.headers["x-frame-options"] == "DENY"
         pedido = parse_qs(consent.query)["pedido"][0]
         csrf = tela.text.split('name="csrf" value="')[1].split('"')[0]
         # csrf errado não passa
@@ -206,6 +207,18 @@ def test_registro_recusa_redirect_http_externo(client, monkeypatch):
         r = client.post("/register", json={"client_name": "x", "redirect_uris": ["http://mal.example/cb"],
                                            "token_endpoint_auth_method": "none"})
         assert r.status_code == 400
+
+
+def test_teto_de_clientes_libera_registro_abandonado(client, monkeypatch):
+    monkeypatch.setattr(main, "startup", _nada)
+    monkeypatch.setattr(mcp_server, "MAX_CLIENTES", 1)
+    corpo = {"client_name": "x", "redirect_uris": ["https://claude.ai/cb"], "token_endpoint_auth_method": "none"}
+    with client:
+        assert client.post("/register", json=corpo).status_code == 201
+        assert client.post("/register", json=corpo).status_code == 400   # teto
+        db.conn().execute("UPDATE mcp_clientes SET criado_em='2000-01-01T00:00:00Z'")
+        db.conn().commit()
+        assert client.post("/register", json=corpo).status_code == 201   # abandonado saiu
 
 
 def test_login_proximo_nao_vira_redirecionador(client, monkeypatch):

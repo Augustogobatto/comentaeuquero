@@ -107,6 +107,8 @@ class Provedor:
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         if db.mcp_contar_clientes() >= MAX_CLIENTES:
+            db.mcp_limpar_clientes_sem_uso()
+        if db.mcp_contar_clientes() >= MAX_CLIENTES:
             raise RegistrationError("invalid_client_metadata",
                                     "limite de clientes registrados nesta instância")
         uris = [str(u) for u in client_info.redirect_uris or []]
@@ -582,6 +584,7 @@ class _Porta:
     # falhas de autenticação por IP antes de travar, e o registro dinâmico por IP
     FALHAS_MAX, FALHAS_JANELA = 30, 600
     REGISTROS_MAX, REGISTROS_JANELA = 10, 3600
+    AUTORIZA_MAX, AUTORIZA_JANELA = 30, 600
 
     def __init__(self):
         self.app = None
@@ -612,6 +615,10 @@ class _Porta:
             if caminho == "/register" and _passou_do_limite(("registro", ip), self.REGISTROS_MAX,
                                                             self.REGISTROS_JANELA):
                 return await JSONResponse({"error": "muitos_registros"}, 429)(scope, receive, send)
+            # cada /authorize guarda um pedido em memória até o dono aprovar
+            if caminho == "/authorize" and _passou_do_limite(("autoriza", ip), self.AUTORIZA_MAX,
+                                                             self.AUTORIZA_JANELA):
+                return await JSONResponse({"error": "muitas_tentativas"}, 429)(scope, receive, send)
 
             async def envia(msg):
                 if msg["type"] == "http.response.start" and msg["status"] in (400, 401):
@@ -684,9 +691,11 @@ def autorizar_tela(request: Request, pedido: str = ""):
         return templates.TemplateResponse(request, "mcp_autorizar.html", {
             "erro": "Esse pedido de acesso venceu. Volte ao Claude e conecte de novo."}, 400)
     destino = urlparse(p["params"]["redirect_uri"]).hostname or ""
+    # a tela de permitir não pode ir dentro de iframe de outro site (clickjacking)
     return templates.TemplateResponse(request, "mcp_autorizar.html", {
         "erro": "", "pedido": pedido, "csrf": _csrf(request, pedido),
-        "cliente": p["cliente_nome"][:80], "destino": destino})
+        "cliente": p["cliente_nome"][:80], "destino": destino},
+        headers={"X-Frame-Options": "DENY", "Content-Security-Policy": "frame-ancestors 'none'"})
 
 
 @router.post("/mcp/autorizar")
