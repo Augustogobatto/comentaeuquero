@@ -48,6 +48,7 @@ Todas as variáveis que a instância lê. Depois de mudar o `.env`, rode `docker
 | `CEQ_LOGIN_FALHAS_JANELA` | `30` | Senhas erradas, somando todos os IPs, aceitas em 10 minutos antes de travar o login. |
 | `CEQ_PERMITE_HTTP` | vazio | `1` libera o login por HTTP. Só para proxy que não envia `X-Forwarded-Proto`. Não use sem necessidade. |
 | `CEQ_SETUP_TOKEN` | vazio | Usado pelo instalador: libera a página `/instalar?t=` para criar a senha no primeiro acesso. |
+| `CEQ_MCP_REDIRECTS` | vazio | Hosts extras (separados por vírgula) pra onde o login OAuth do conector MCP pode devolver o acesso. Por padrão só `claude.ai`, `claude.com` e `localhost`. Ver [MCP](./mcp). |
 
 ## Instalação e licença
 

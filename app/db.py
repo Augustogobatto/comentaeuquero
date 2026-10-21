@@ -1646,6 +1646,7 @@ def _sha(valor: str) -> str:
 
 
 def mcp_guardar_token(token, tipo, cliente_id="", cliente_nome="", expira_em="") -> int:
+    conn().execute("DELETE FROM mcp_tokens WHERE expira_em<>'' AND expira_em<=?", (now_iso(),))
     cur = conn().execute(
         """INSERT INTO mcp_tokens (hash, tipo, cliente_id, cliente_nome, final, expira_em)
            VALUES (?,?,?,?,?,?)""",
@@ -1715,12 +1716,12 @@ def mcp_cliente(client_id):
     return d
 
 
-def mcp_limpar_clientes_sem_uso(horas=24) -> int:
-    """Cliente registrado há mais de `horas` que nunca recebeu token: registro
+def mcp_limpar_clientes_sem_uso(minutos=15) -> int:
+    """Cliente registrado há mais de `minutos` que nunca recebeu token: registro
     abandonado (ou enchimento de propósito). Sai pra abrir vaga no teto."""
     cur = conn().execute(
         "DELETE FROM mcp_clientes WHERE criado_em < ? AND client_id NOT IN "
-        "(SELECT cliente_id FROM mcp_tokens)", (in_seconds_iso(-horas * 3600),))
+        "(SELECT cliente_id FROM mcp_tokens)", (in_seconds_iso(-minutos * 60),))
     conn().commit()
     return cur.rowcount
 
