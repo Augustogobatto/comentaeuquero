@@ -1,0 +1,34 @@
+name: Sugestão
+description: Uma melhoria ou upgrade que você gostaria de ver
+labels: ["sugestao"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema você quer resolver
+      description: Conte a situação real, não só a solução imaginada.
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Como você imagina que funcionaria
+    validations:
+      required: false
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Como você resolve hoje
+      description: Gambiarra, outra ferramenta, fazer na mão.
+    validations:
+      required: false
+  - type: dropdown
+    id: contribuir
+    attributes:
+      label: Você toparia mandar o PR?
+      options:
+        - Sim
+        - Talvez, com ajuda
+        - Não
+    validations:
+      required: false

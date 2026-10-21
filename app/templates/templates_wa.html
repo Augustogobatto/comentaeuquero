@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Templates do WhatsApp — comenta EU QUERO{% endblock %}
+{% block content %}
+
+{% if not wa_configurado %}
+<div class="aviso">Ligue um número de WhatsApp em <a href="/config">Configurações</a> pra usar templates.</div>
+{% else %}
+
+<div class="cabeca">
+  <div>
+    <h1>Templates do WhatsApp</h1>
+    <p class="sub" style="margin:2px 0 0;">Template é a mensagem pré-aprovada que pode abrir
+      conversa com quem está fora da janela de 24h. Quem aprova é a Meta; costuma levar de
+      minutos a 24h.</p>
+  </div>
+  <button class="btn" id="sincronizar">Sincronizar com a Meta</button>
+</div>
+
+<div class="card">
+  {% if templates_wa %}
+  <table class="tabela">
+    <thead><tr><th>Nome</th><th>Idioma</th><th>Categoria</th><th>Status</th><th>Texto</th></tr></thead>
+    <tbody>
+    {% for t in templates_wa %}
+      <tr>
+        <td><b>{{ t.nome }}</b></td>
+        <td>{{ t.idioma }}</td>
+        <td>{{ t.categoria|lower }}</td>
+        <td><span class="status-tpl {{ t.status|lower }}">{{ {'APPROVED': 'aprovado', 'PENDING': 'em análise', 'REJECTED': 'recusado'}.get(t.status, t.status|lower) }}</span></td>
+        <td class="sub">{{ t.corpo }}{% if t.botoes %} · botões: {{ t.botoes|join(', ') }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="sub">Nenhum template ainda. Sincronize os que já existem na sua conta da Meta ou crie um abaixo.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Novo template</h2>
+  <label>Nome <span class="sub">minúsculas, números e _ (ex.: boas_vindas)</span>
+    <input id="nome" placeholder="boas_vindas" /></label>
+  <label>Categoria
+    <select id="categoria">
+      <option value="MARKETING">marketing (oferta, novidade, convite)</option>
+      <option value="UTILITY">utilidade (confirmação, aviso de algo que a pessoa pediu)</option>
+    </select></label>
+  <label>Idioma <input id="idioma" value="pt_BR" /></label>
+  <label>Texto <span class="sub">use {{ '{{1}}' }}, {{ '{{2}}' }}... onde entra o nome ou outro campo</span>
+    <textarea id="corpo" rows="4" placeholder="Oi {{ '{{1}}' }}, aqui está o material que você pediu."></textarea></label>
+  <div id="exemplos"></div>
+  <label>Botões de resposta <span class="sub">até 3, separados por vírgula, opcional</span>
+    <input id="botoes" placeholder="Quero, Agora não" /></label>
+  <p class="sub">Prévia</p>
+  <div class="msg" id="previa"></div>
+  <button class="btn" id="criar">Enviar pra aprovação</button>
+  <p id="resultado" class="sub"></p>
+</div>
+
+<style>
+.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabela th, .tabela td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line, #eee); vertical-align: top; }
+.status-tpl { font-weight: 600; }
+.status-tpl.approved { color: #047857; }
+.status-tpl.pending { color: #b45309; }
+.status-tpl.rejected { color: #b91c1c; }
+</style>
+<script>
+const $ = (id) => document.getElementById(id)
+const vars = () => [...new Set(($('corpo').value.match(/\{\{\s*(\d+)\s*\}\}/g) || [])
+  .map((m) => m.replace(/\D/g, '')))].sort((a, b) => a - b)
+function desenha() {
+  const atuais = [...document.querySelectorAll('#exemplos input')].reduce((o, i) => (o[i.dataset.v] = i.value, o), {})
+  $('exemplos').innerHTML = ''
+  for (const v of vars()) {
+    const l = document.createElement('label')
+    l.textContent = `Exemplo pra {{ '{{' }}${v}{{ '}}' }} `
+    const i = document.createElement('input'); i.dataset.v = v; i.value = atuais[v] || ''
+    i.addEventListener('input', previa)
+    l.appendChild(i); $('exemplos').appendChild(l)
+  }
+  previa()
+}
+function previa() {
+  let t = $('corpo').value
+  for (const i of document.querySelectorAll('#exemplos input')) t = t.split(`{{ '{{' }}${i.dataset.v}{{ '}}' }}`).join(i.value || `[${i.dataset.v}]`)
+  const bs = $('botoes').value.split(',').map((b) => b.trim()).filter(Boolean)
+  $('previa').textContent = t + (bs.length ? `\n[ ${bs.join(' ] [ ')} ]` : '')
+}
+$('corpo').addEventListener('input', desenha)
+$('botoes').addEventListener('input', previa)
+$('sincronizar').addEventListener('click', async () => {
+  const r = await fetch('/api/wa/templates/sync', { method: 'POST' })
+  if (r.ok) location.reload(); else alert((await r.json()).detail || 'falhou')
+})
+$('criar').addEventListener('click', async () => {
+  const body = {
+    nome: $('nome').value.trim(), categoria: $('categoria').value, idioma: $('idioma').value.trim() || 'pt_BR',
+    corpo: $('corpo').value,
+    exemplos: [...document.querySelectorAll('#exemplos input')].map((i) => i.value),
+    botoes: $('botoes').value.split(',').map((b) => b.trim()).filter(Boolean),
+  }
+  const r = await fetch('/api/wa/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const j = await r.json()
+  $('resultado').textContent = r.ok ? `Enviado. Status na Meta: ${j.status || 'em análise'}.` : (j.detail || 'falhou')
+  if (r.ok) setTimeout(() => location.reload(), 1200)
+})
+</script>
+{% endif %}
+{% endblock %}

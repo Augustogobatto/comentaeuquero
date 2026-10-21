@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Tutoriais e instalação
+    url: https://comentaeuquero.com
+    about: Passo a passo de instalação, app da Meta e webhook.
+  - name: Vulnerabilidade de segurança
+    url: https://github.com/Augustogobatto/comentaeuquero/blob/main/SECURITY.md
+    about: Não abra issue pública. Veja como reportar em privado.

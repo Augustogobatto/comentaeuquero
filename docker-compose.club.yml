@@ -1,0 +1,37 @@
+# AVISO: instalação nova = use o instalador do chão em
+# https://ia.augustogobatto.com/members/instalar (HTTPS, senha e atualização prontos).
+# O script que a página manda rodar é https://ia.augustogobatto.com/chao/install.sh
+# (o comando completo, com o seu token, aparece na página).
+# Este arquivo continua valendo pra quem já instalou. A partir da 1.7.0 a tag :latest
+# não é mais atualizada: o watchtower destas instalações fica na 1.6.9 até migrarem.
+#
+# comenta EU QUERO — instalação Club: imagem pronta + atualização automática.
+#
+# 1) docker login ghcr.io -u SEU_USUARIO_GITHUB  (senha = token da aula do Club)
+# 2) cp .env.example .env  (preencha seguindo o README)
+# 3) docker compose -f docker-compose.club.yml up -d
+#
+# O watchtower confere a cada 6h se saiu versão nova e atualiza sozinho.
+services:
+  comentaeuquero:
+    image: ghcr.io/augustogobatto/comentaeuquero:latest
+    ports:
+      # só o loopback: quem fala com o app é o proxy (cloudflared, Caddy, nginx),
+      # que roda no host. Publicar em 0.0.0.0 deixava o painel também acessível em
+      # http://IP:8080, sem HTTPS, com a senha viajando em claro.
+      - "127.0.0.1:8080:8080"
+    env_file: .env
+    volumes:
+      - ceq_data:/data
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.docker/config.json:/config.json:ro
+    command: --interval 21600 --cleanup comentaeuquero-comentaeuquero-1
+    restart: unless-stopped
+
+volumes:
+  ceq_data:

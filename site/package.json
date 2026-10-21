@@ -1,0 +1,17 @@
+{
+  "name": "comentaeuquero-site",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Site do comenta EU QUERO (comentaeuquero.com)",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "@fontsource-variable/host-grotesk": "5.3.0",
+    "@fontsource/fragment-mono": "5.3.0",
+    "vitepress": "1.6.4"
+  }
+}

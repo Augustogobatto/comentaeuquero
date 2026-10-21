@@ -1,0 +1,6 @@
+{
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/:path*", "has": [{ "type": "host", "value": "www.comentaeuquero.com" }], "destination": "https://comentaeuquero.com/:path*", "permanent": true }
+  ]
+}

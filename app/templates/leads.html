@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Leads — comenta EU QUERO{% endblock %}
+{% block content %}
+
+{# monta a URL trocando um filtro e preservando os outros #}
+{% macro com(par, valor) -%}
+/leads?keyword={{ (filtros.keyword if par != 'keyword' else valor) | urlencode }}&segue={{ (filtros.segue if par != 'segue' else valor) | urlencode }}&busca={{ (filtros.busca if par != 'busca' else valor) | urlencode }}&ordem={{ (ordem if par != 'ordem' else valor) | urlencode }}
+{%- endmacro %}
+
+<div class="card">
+  <div class="cabeca">
+    <div>
+      <h1>Leads</h1>
+      <p class="sub" style="margin:2px 0 0;">Quem pediu seu link, com o perfil do Instagram.{% if wa_ativo() %} · <a href="/leads/importar">Importar contatos</a>{% endif %}</p>
+    </div>
+    <div class="resumo">
+      <div><span class="num">{{ resumo.total }}</span><span class="rot">no total</span></div>
+      <div><span class="num">{{ resumo.seguidores }}</span><span class="rot">te seguem</span></div>
+    </div>
+  </div>
+
+  <form class="busca" method="get" action="/leads">
+    <input type="search" name="busca" value="{{ filtros.busca }}" placeholder="Procurar por nome ou @">
+    <input type="hidden" name="keyword" value="{{ filtros.keyword }}">
+    <input type="hidden" name="segue" value="{{ filtros.segue }}">
+    <input type="hidden" name="ordem" value="{{ ordem }}">
+    <button type="submit" class="quieto">Procurar</button>
+  </form>
+
+  {% if resumo.palavras %}
+  <div class="filtro-linha">
+    <span class="rot-linha">Palavra</span>
+    <a class="chip {{ 'ligado' if not filtros.keyword }}" href="{{ com('keyword', '') }}">todas</a>
+    {% for k, n in resumo.palavras %}
+      <a class="chip {{ 'ligado' if filtros.keyword == k }}" href="{{ com('keyword', k) }}">
+        {{ k }} <span class="n">{{ n }}</span>
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="filtro-linha">
+    <span class="rot-linha">Segue você</span>
+    <a class="chip {{ 'ligado' if filtros.segue == '' }}" href="{{ com('segue', '') }}">tanto faz</a>
+    <a class="chip {{ 'ligado' if filtros.segue == '1' }}" href="{{ com('segue', '1') }}">sim</a>
+    <a class="chip {{ 'ligado' if filtros.segue == '0' }}" href="{{ com('segue', '0') }}">não</a>
+  </div>
+
+  {% if filtros.keyword or filtros.segue or filtros.busca %}
+  <p class="achados">
+    {{ leads|length }} lead{{ 's' if leads|length != 1 }} com esse filtro
+    <a href="/leads">limpar tudo</a>
+  </p>
+  {% endif %}
+
+  {% if leads %}
+  <div class="twrap">
+  <table>
+    <tr>
+      <th style="width:30px;"></th>
+      <th><a class="ord {{ 'ativo' if ordem == 'nome' }}" href="{{ com('ordem', 'nome') }}">Lead</a></th>
+      <th class="num"><a class="ord {{ 'ativo' if ordem == 'seguidores' }}" href="{{ com('ordem', 'seguidores') }}">Seguidores</a></th>
+      <th>Segue você</th>
+      <th>Palavra</th>
+      {% if wa_ativo() %}<th>WhatsApp</th>{% endif %}
+      <th class="num"><a class="ord {{ 'ativo' if ordem == 'interacoes' }}" href="{{ com('ordem', 'interacoes') }}">Interações</a></th>
+      <th class="num"><a class="ord {{ 'ativo' if ordem in ('recente', 'antigo') }}" href="{{ com('ordem', 'antigo' if ordem == 'recente' else 'recente') }}">Última vez</a></th>
+      <th style="width:28px;"></th>
+    </tr>
+    {% for l in leads %}
+    <tr>
+      <td>
+        {% if l.profile_pic %}<img class="avatar" style="width:26px;height:26px;" src="{{ l.profile_pic }}" alt="">
+        {% else %}<div class="avatar letra" style="width:26px;height:26px;font-size:11px;">{{ (l.username or "?")[:1] | upper }}</div>{% endif %}
+      </td>
+      <td style="white-space:normal; min-width:180px;">
+        <b>{{ l.name or l.username or l.igsid }}</b>
+        {% if l.username %}<br><a href="https://instagram.com/{{ l.username }}" target="_blank" rel="noopener">@{{ l.username }}</a>{% endif %}
+      </td>
+      <td class="num">{{ l.followers | fmt_k }}</td>
+      <td>
+        {% if l.is_follower == 1 %}
+          <a class="celula" href="{{ com('segue', '1') }}"><span class="dot ok"></span>sim</a>
+        {% elif l.is_follower == 0 %}
+          <a class="celula" href="{{ com('segue', '0') }}"><span class="dot mut"></span>não</a>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if l.last_keyword %}
+          <a href="{{ com('keyword', l.last_keyword) }}" class="pill" style="margin:0;">{{ l.last_keyword }}</a>
+        {% endif %}
+      </td>
+      {% if wa_ativo() %}<td>{% if l.wa_id %}+{{ l.wa_id }}{% if l.wa_optout_em %} <span class="sub">saiu</span>{% endif %}{% endif %}</td>{% endif %}
+      <td class="num">{{ l.interactions }}</td>
+      <td class="num">{{ (l.last_ts or l.first_ts)[8:10] }}/{{ (l.last_ts or l.first_ts)[5:7] }} {{ (l.last_ts or l.first_ts)[11:16] }}</td>
+      <td>
+        {# exclusão a pedido da pessoa: some o lead, as tags e os campos capturados #}
+        <form method="post" action="/leads/{{ l.id }}/apagar"
+              onsubmit="return confirm('Apagar {{ (l.username or l.igsid) }} e tudo que foi guardado dele (tags, telefone, e-mail)? Não tem como desfazer.')">
+          <button type="submit" class="apagar" title="Apagar este lead e os dados dele" aria-label="Apagar lead">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>
+            </svg>
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="sub" style="margin:12px 0 0; font-size:12px;">
+    {% if retencao_dias %}Leads parados há mais de {{ retencao_dias }} dias são apagados
+    automaticamente, junto com tags e campos capturados.
+    {% else %}Os leads ficam guardados por tempo indeterminado. Pra apagar sozinho os
+    antigos, defina <code>RETENCAO_LEADS_DIAS</code> no .env.{% endif %}
+  </p>
+  {% elif filtros.keyword or filtros.segue or filtros.busca %}
+  <p class="sub" style="margin:0;">Nenhum lead com esse filtro. <a href="/leads">Ver todos</a>.</p>
+  {% else %}
+  <p class="sub" style="margin:0;">Nenhum lead ainda. Eles entram aqui na primeira interação com um fluxo ativo.</p>
+  {% endif %}
+</div>
+
+<style>
+.cabeca { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.resumo { display: flex; gap: 20px; text-align: right; flex: none; }
+.resumo .num { font-size: 20px; font-weight: 600; display: block; line-height: 1.1; }
+.resumo .rot { font-size: 10px; color: var(--mut); font-weight: 600;
+               text-transform: uppercase; letter-spacing: .06em; }
+.busca { display: flex; gap: 8px; margin: 16px 0 4px; }
+.busca input[type=search] {
+  flex: 1; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px;
+  font: inherit; font-size: 13px; background: var(--panel); color: var(--ink);
+}
+.busca input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.busca button { margin-top: 0; }
+.filtro-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rot-linha {
+  font-size: 10.5px; color: var(--mut); font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; margin-right: 2px; min-width: 72px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+  border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px;
+  color: var(--ink); text-decoration: none; background: var(--panel);
+}
+.chip:hover { border-color: var(--mut); text-decoration: none; }
+.chip.ligado { background: var(--ink); border-color: var(--ink); color: #fff; }
+.chip .n { font-family: var(--mono); font-variant-numeric: tabular-nums;
+           font-size: 10.5px; color: var(--mut); }
+.chip.ligado .n { color: #ffffffaa; }
+.achados { font-size: 12.5px; color: var(--mut); margin: 14px 0 0; }
+.achados a { margin-left: 6px; }
+.twrap { margin-top: 14px; }
+th .ord { color: inherit; text-decoration: none; }
+th .ord:hover { color: var(--ink); text-decoration: none; }
+th .ord.ativo { color: var(--ink); }
+th .ord.ativo::after { content: " ↓"; font-size: 9px; }
+td .celula { color: inherit; text-decoration: none; }
+td .celula:hover { color: var(--accent); text-decoration: none; }
+a.pill:hover { text-decoration: none; filter: brightness(.95); }
+td form { margin: 0; }
+button.apagar {
+  background: none; border: none; padding: 2px; margin: 0; cursor: pointer;
+  color: var(--mut); line-height: 0; opacity: 0; transition: opacity .12s ease;
+}
+tr:hover button.apagar { opacity: 1; }
+button.apagar:hover { color: var(--err); opacity: 1; }
+button.apagar:focus-visible { opacity: 1; outline: 2px solid var(--accent); border-radius: 4px; }
+@media (max-width: 560px) {
+  .cabeca { flex-direction: column; }
+  .resumo { text-align: left; }
+  .rot-linha { min-width: 0; width: 100%; }
+}
+/* touch não tem hover: o botão de apagar precisa existir sem ele */
+@media (hover: none) {
+  button.apagar { opacity: .5; }
+}
+</style>
+{% endblock %}

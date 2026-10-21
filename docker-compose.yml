@@ -1,0 +1,15 @@
+services:
+  comentaeuquero:
+    build: .
+    ports:
+      # só o loopback: quem fala com o app é o proxy (Caddy, nginx, cloudflared),
+      # que roda no host. Publicar em 0.0.0.0 deixava o painel também acessível em
+      # http://IP:8080, sem HTTPS, com a senha viajando em claro.
+      - "127.0.0.1:8080:8080"
+    env_file: .env
+    volumes:
+      - ceq_data:/data
+    restart: unless-stopped
+
+volumes:
+  ceq_data:

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Transmissão — comenta EU QUERO{% endblock %}
+{% block content %}
+
+{% if modo == 'nova' %}
+<h1>Nova transmissão</h1>
+{% if not templates_wa %}
+<div class="aviso">Nenhum template aprovado. Crie ou sincronize em <a href="/templates">Templates</a>.</div>
+{% else %}
+<form method="post" action="/transmissoes">
+<div class="card">
+  <label>Nome <span class="sub">só pra você achar depois</span>
+    <input type="text" name="nome" placeholder="Convite da live de quinta"></label>
+
+  <label>Template
+    <select name="template" id="template">
+      {% for t in templates_wa %}<option value="{{ t.nome }}|{{ t.idioma }}" data-cat="{{ t.categoria|lower }}"
+        data-vars="{{ t.variaveis|join(',') }}" data-corpo="{{ t.corpo }}">{{ t.nome }} ({{ t.idioma }}, {{ t.categoria|lower }})</option>{% endfor %}
+    </select></label>
+  <p class="sub" id="corpo"></p>
+  <div id="variaveis"></div>
+</div>
+
+<div class="card">
+  <h2>Pra quem</h2>
+  <label>Público
+    <select name="publico_tipo" id="publico_tipo">
+      <option value="todos">todos com WhatsApp e consentimento</option>
+      <option value="tag">quem tem a etiqueta</option>
+      <option value="campo">quem tem o campo</option>
+    </select></label>
+  <label id="l_tag" hidden>Etiqueta
+    <select id="sel_tag">{% for tag, n in tags %}<option value="{{ tag }}">{{ tag }} ({{ n }})</option>{% endfor %}</select></label>
+  <label id="l_campo" hidden>Campo
+    <select id="sel_campo">{% for c in campos %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></label>
+  <label id="l_campo_valor" hidden>Igual a <span class="sub">vazio = qualquer valor preenchido</span>
+    <input type="text" name="campo_valor" id="campo_valor"></label>
+  <input type="hidden" name="publico_valor" id="publico_valor">
+  <p><b id="total">…</b> <span class="sub">pessoas vão receber</span></p>
+  <p class="sub">Limite do número: {% if limite_diario is none %}sem limite{% else %}{{ limite_diario }} pessoas por 24h{% endif %}
+    · {{ enviados_24h }} já receberam template nas últimas 24h. Passou do limite, a fila espera.</p>
+  <p class="sub">Custo estimado: <b id="custo">…</b> (estimativa pela tabela da Meta pro Brasil; o valor real vem na fatura).</p>
+</div>
+
+<div class="card">
+  <h2>Quando</h2>
+  <label style="font-weight:400;"><input type="radio" name="quando" value="agora" checked style="width:auto;"> enviar agora</label>
+  <label style="font-weight:400;"><input type="radio" name="quando" value="agendar" style="width:auto;"> agendar (horário de Brasília)</label>
+  <input type="datetime-local" name="data_hora">
+  <label>Ritmo <span class="sub">mensagens por minuto, entre {{ ritmo_min }} e {{ ritmo_max }}</span>
+    <input type="number" name="ritmo" value="20" min="{{ ritmo_min }}" max="{{ ritmo_max }}" style="max-width:140px;"></label>
+</div>
+
+<button type="submit">Criar transmissão</button>
+</form>
+
+<script>
+const precos = {{ precos|tojson }}
+const $ = (id) => document.getElementById(id)
+const opcoes = ['{primeiro_nome}', '{name}', '{username}'{% for c in campos %}, {{ ('{' ~ c ~ '}')|tojson }}{% endfor %}]
+function desenhaVars() {
+  const o = $('template').selectedOptions[0]
+  $('corpo').textContent = o.dataset.corpo
+  $('variaveis').innerHTML = ''
+  for (const v of (o.dataset.vars || '').split(',').filter(Boolean)) {
+    const l = document.createElement('label'); l.textContent = `Variável {{ '{{' }}${v}{{ '}}' }} `
+    const i = document.createElement('input'); i.name = `var_${v}`; i.setAttribute('list', 'opcoes_var')
+    i.placeholder = '{primeiro_nome} ou um texto fixo'
+    l.appendChild(i); $('variaveis').appendChild(l)
+  }
+  conta()
+}
+function valorPublico() {
+  const t = $('publico_tipo').value
+  $('l_tag').hidden = t !== 'tag'; $('l_campo').hidden = t !== 'campo'; $('l_campo_valor').hidden = t !== 'campo'
+  $('publico_valor').value = t === 'tag' ? $('sel_tag').value : t === 'campo' ? $('sel_campo').value : ''
+}
+let total = 0
+async function conta() {
+  valorPublico()
+  const q = new URLSearchParams({ tipo: $('publico_tipo').value, valor: $('publico_valor').value, campo_valor: $('campo_valor').value })
+  const r = await fetch('/api/wa/publico?' + q)
+  total = r.ok ? (await r.json()).total : 0
+  $('total').textContent = total
+  const cat = $('template').selectedOptions[0].dataset.cat
+  $('custo').textContent = 'US$ ' + (total * (precos[cat] ?? precos.marketing)).toFixed(2)
+}
+for (const id of ['template', 'publico_tipo', 'sel_tag', 'sel_campo']) $(id).addEventListener('change', id === 'template' ? desenhaVars : conta)
+$('campo_valor').addEventListener('input', conta)
+const dl = document.createElement('datalist'); dl.id = 'opcoes_var'
+for (const o of opcoes) { const op = document.createElement('option'); op.value = o; dl.appendChild(op) }
+document.body.appendChild(dl)
+desenhaVars()
+</script>
+{% endif %}
+
+{% else %}
+{% if t.status == 'enviando' %}<meta http-equiv="refresh" content="15">{% endif %}
+<div class="cabeca">
+  <div>
+    <h1>{{ t.nome }}</h1>
+    <p class="sub" style="margin:2px 0 0;">template {{ t.template }} · {{ {'agendada': 'agendada', 'enviando': 'enviando', 'pausada': 'pausada', 'concluida': 'concluída', 'cancelada': 'cancelada'}.get(t.status, t.status) }}
+      {% if t.agendada_para %}· {{ t.agendada_para|brasilia }}{% endif %} · {{ t.ritmo_por_minuto }}/min</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="grade">
+    <div class="mini"><b class="num">{{ r.total or previsto }}</b><span>{{ 'na fila' if r.total else 'previstas' }}</span></div>
+    <div class="mini"><b class="num">{{ r.enviado }}</b><span>enviadas</span></div>
+    <div class="mini"><b class="num">{{ r.entregue }}</b><span>entregues</span></div>
+    <div class="mini"><b class="num">{{ r.lido }}</b><span>lidas</span></div>
+    <div class="mini"><b class="num">{{ r.respondido }}</b><span>responderam</span></div>
+    <div class="mini"><b class="num">{{ r.falhou }}</b><span>falharam</span></div>
+    <div class="mini"><b class="num">{{ r.pulado }}</b><span>puladas (pediram SAIR)</span></div>
+    {% if r.revisar %}<div class="mini"><b class="num">{{ r.revisar }}</b><span>a revisar (envio interrompido, pode ter chegado)</span></div>{% endif %}
+    <div class="mini"><b class="num">{{ r.pendente }}</b><span>pendentes</span></div>
+  </div>
+  <p class="sub">Custo estimado: US$ {{ '%.2f'|format(r.custo_usd) }}{% if r.por_categoria %} ({% for c, n in r.por_categoria.items() %}{{ n }} {{ c }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Estimativa; o valor real vem na fatura da Meta.</p>
+  {% if r.erros %}<p class="sub">Erros da Meta: {% for c, n in r.erros.items() %}<code>{{ c }}</code> × {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</div>
+
+{% if t.status in ('agendada', 'enviando', 'pausada') %}
+<div style="display:flex; gap:8px;">
+  {% if t.status == 'enviando' %}<form method="post" action="/transmissoes/{{ t.id }}/pausar"><button class="quieto">Pausar</button></form>{% endif %}
+  {% if t.status == 'pausada' %}<form method="post" action="/transmissoes/{{ t.id }}/retomar"><button>Retomar</button></form>{% endif %}
+  <form method="post" action="/transmissoes/{{ t.id }}/cancelar" onsubmit="return confirm('Cancelar esta transmissão? Quem ainda não recebeu não vai receber.')"><button class="quieto">Cancelar</button></form>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

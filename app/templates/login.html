@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Entrar — comenta EU QUERO{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 360px; margin: 10vh auto 0;">
+  <div class="marca" style="font-size: 15px;">comenta <b>EU QUERO</b></div>
+  <p class="sub" style="margin-top: 4px;">Automação de respostas no direct.</p>
+  {% if erro %}<div class="aviso">{{ erro }}</div>{% endif %}
+  <form method="post" action="/login">
+    <label>Senha do painel</label>
+    <input type="password" name="senha" autofocus autocomplete="current-password">
+    <button type="submit" style="width: 100%;">Entrar</button>
+  </form>
+  <p class="sub" style="margin-bottom: 0;">Definida no primeiro acesso ou em <code>ADMIN_PASSWORD</code> no seu .env.</p>
+</div>
+{% endblock %}

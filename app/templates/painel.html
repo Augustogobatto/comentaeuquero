@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Painel — comenta EU QUERO{% endblock %}
+{% block content %}
+<style>
+a.mini { color: inherit; text-decoration: none; display: block;
+         transition: border-color .12s ease; }
+a.mini:hover { border-color: var(--mut); text-decoration: none; }
+a.mini b { color: var(--ink); }
+</style>
+
+{% if conectado %}<div class="aviso ok"><span class="dot ok"></span>Conta conectada. O webhook de comentários e mensagens está assinado.</div>{% endif %}
+
+{% if licenca.status == 'ativada' %}
+{% elif licenca.status == 'nao_ativada' %}
+<div class="aviso" style="background:#fef9c3; border-color:#facc15; color:#713f12;">Assinatura do Club inativa: o sistema continua rodando, sem atualizações e suporte. <a href="https://ia.augustogobatto.com/members" target="_blank" rel="noopener">Reativar assinatura</a>.</div>
+{% endif %}
+
+{% if falta_secret %}
+<div class="aviso grave"><strong>Os eventos da Meta estão sendo recusados.</strong>
+Falta a chave secreta do app da Meta: cole em <a href="/config">Configurações</a> (ou <code>META_APP_SECRET</code> no .env). É com ela que a instância confere que o
+evento veio mesmo da Meta, e sem essa conferência qualquer um poderia mandar DM em nome
+da sua conta. Enquanto estiver vazio, nenhum comentário ou mensagem é processado.
+O valor está no painel da Meta, em <em>Configuração da API com login do Instagram</em>
+(a chave secreta <strong>do Instagram</strong>, não a do app geral). O passo a passo está em Configurações.</div>
+{% elif not configurado %}
+<div class="aviso">Faltam itens de configuração ({% for v in faltando %}<code>{{ v }}</code>{% if not loop.last %}, {% endif %}{% endfor %}). O passo a passo está em <a href="/config">Configurações</a>.</div>
+{% endif %}
+
+<div class="card">
+  {% if account %}
+    <div class="conta">
+      {% if account.profile_pic %}<img class="avatar g" src="{{ account.profile_pic }}" alt="">
+      {% else %}<div class="avatar g letra">{{ account.username[:1] | upper }}</div>{% endif %}
+      <div>
+        <b>@{{ account.username }}</b><br>
+        <span class="sub"><span class="dot ok"></span>conectada · token renova automaticamente · {{ token_dias }} dias de validade{% if licenca.status == 'ativada' %} · <span class="dot ok"></span>ativada{% if licenca.member %} ({{ licenca.member }}){% endif %}{% endif %}</span>
+      </div>
+    </div>
+    <form method="post" action="/logout-todos" style="margin-top:12px;"
+          onsubmit="return confirm('Encerrar todas as sessões abertas do painel, inclusive esta? Você vai precisar entrar de novo.')">
+      <button type="submit" class="quieto" style="font-size:12px; padding:4px 10px;">Encerrar sessões em todos os dispositivos</button>
+    </form>
+    {% if token_dias is not none and token_dias < 10 %}
+      <div class="aviso" style="margin-top:14px;">A renovação automática do token não completou.
+      <a href="/auth/start">Reconectar conta</a>.</div>
+    {% endif %}
+  {% else %}
+    <h1>Conecte seu Instagram</h1>
+    <p class="sub">Conta Profissional (Business ou Criador). A autorização acontece na Meta — sua senha não passa por aqui.</p>
+    <a class="btn" href="/auth/start">Conectar Instagram</a>
+  {% endif %}
+</div>
+
+{% if wa.configurado %}
+<div class="card">
+  <h2>WhatsApp</h2>
+  <p class="sub" style="margin:0;"><span class="dot {{ 'ok' if wa.qualidade in ('GREEN', '') else ('err' if wa.qualidade == 'RED' else 'mut') }}"></span>
+    <b>{{ wa.nome or 'número ligado' }}</b>{% if wa.numero %} · {{ wa.numero }}{% endif %}
+    {% if wa.qualidade %} · qualidade {{ {'GREEN': 'alta', 'YELLOW': 'média', 'RED': 'baixa'}.get(wa.qualidade, wa.qualidade|lower) }}{% endif %}
+    · limite {% if wa.limite is none %}ilimitado{% else %}{{ wa.limite }} pessoas/24h{% endif %}
+    · {{ wa.enviados_24h }} receberam template nas últimas 24h
+    {% if wa.cooldown_s > 0 %} · <span style="color:var(--err);">em espera a pedido da Meta</span>{% endif %}</p>
+  <p class="sub" style="margin-bottom:0;"><a href="/transmissoes">Transmissões</a> · <a href="/templates">Templates</a></p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Respostas entregues no direct</h2>
+  <div class="contador">{{ stats.total }}</div>
+  <p class="sub" style="margin-bottom:0;">
+    {% if stats.fails %}{{ stats.fails }} falhas de envio · {% endif %}
+    {% if leads_total %}{{ leads_total }} leads capturados — <a href="/leads">ver leads</a>{% endif %}
+  </p>
+</div>
+
+<div class="grade">
+  {% for k, n in stats.per_rule %}
+  <a class="mini" href="/leads?keyword={{ k | urlencode }}"><b>{{ n }}</b><span>{{ k }}</span></a>
+  {% endfor %}
+  {% for s, n in stats.per_source %}
+  <div class="mini"><b>{{ n }}</b><span>{% if s == 'comentario' %}comentário{% elif s == 'story_reply' %}story{% elif s == 'dm' %}dm{% else %}{{ s }}{% endif %}</span></div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Atividade recente</h2>
+  {% if stats.last %}
+  <div class="thread">
+    {% for e in stats.last %}
+      {% set info = leads_info.get(e.who) %}
+      <div class="linha-in">
+        {% if info and info.pic %}<img class="avatar" src="{{ info.pic }}" alt="">
+        {% else %}<div class="avatar letra">{{ (e.who or "?")[:1] | upper }}</div>{% endif %}
+        <div class="msg in">
+          <b>{{ (info and info.name) or e.who or "—" }}</b> mandou <span class="pill" style="margin:0;">{{ e.rule_keyword }}</span>
+          <span class="meta">{% if e.source in ('comentario', 'comment') %}comentário{% elif e.source == 'live_comment' %}live{% elif e.source == 'story_reply' %}story{% else %}dm{% endif %} · {{ e.ts | quando }}</span>
+        </div>
+      </div>
+      <div class="msg out">
+        {% if e.ok %}<span class="dot ok"></span>Link entregue no direct
+        {% else %}<span class="dot err"></span>Falha no envio{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="sub" style="margin:0;">Sem atividade ainda. Crie uma <a href="/regras">regra</a> e publique um conteúdo com a chamada.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Entregas por dia</h2>
+  <table>{% for d, n in stats.per_day %}<tr><td>{{ d[8:10] }}/{{ d[5:7] }}</td><td class="num">{{ n }}</td></tr>{% else %}<tr><td class="sub">—</td></tr>{% endfor %}</table>
+</div>
+
+<div class="card">
+  <h2>Baixar histórico</h2>
+  <p class="sub">O funil dia a dia, em CSV, pra conferir na planilha. Vai no seu fuso, não em UTC.</p>
+  <form action="/api/export.csv" method="get" class="baixar">
+    <input type="hidden" name="sep" value=";">
+    <input type="hidden" name="tz" value="-3">
+    <label>de <input type="date" name="desde" value="{{ hist_desde }}"></label>
+    <label>até <input type="date" name="ate" value="{{ hist_ate }}"></label>
+    <select name="tipo">
+      <option value="historico">resumo por dia</option>
+      <option value="execucoes">uma linha por disparo</option>
+      <option value="eventos">tudo, com payload</option>
+    </select>
+    <select name="por">
+      <option value="dia">só o dia</option>
+      <option value="dia_fluxo">dia e fluxo</option>
+    </select>
+    <button class="btn" type="submit">Baixar CSV</button>
+  </form>
+</div>
+
+{% endblock %}

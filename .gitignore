@@ -1,0 +1,35 @@
+venv/
+.venv/
+data/
+__pycache__/
+*.pyc
+editor/node_modules/
+
+# segredo: nunca versionar
+.env
+*.db
+tokens.json
+
+# scripts de diagnostico rodados na maquina, nao fazem parte do produto
+diag_*.py
+verifica_prod.py
+olha_teste.py
+troca_placeholder.py
+
+# aula RENDERIZADA (tem o token do ghcr embutido) — nunca versionar.
+# O template fica em docs/, o render sai daqui.
+aula_final.md
+aula_club_final.html
+aula_final.html
+
+# scripts internos do autor e saídas locais: não fazem
+# parte do produto.
+ativar_augusto.py
+publicar_club.py
+renderizar_aula.py
+migrar_do_comenta_dm.py
+remigrar_eventos.py
+backfill_leads.py
+smoke_test.sh
+docs/aula_club.html
+editor/dist/

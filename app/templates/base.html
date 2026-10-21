@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}comenta EU QUERO{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --ink: #111113;
+  --mut: #6f6f78;
+  --line: #e5e5ea;
+  --accent: #5b3df5;
+  --accent-soft: #f1eefe;
+  --ok: #16a34a;
+  --err: #dc2626;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  --r: 10px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: var(--sans); background: var(--bg); color: var(--ink); margin: 0;
+       font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+
+/* topo */
+.topo { background: var(--panel); border-bottom: 1px solid var(--line); padding: 0 20px;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        height: 52px; position: sticky; top: 0; z-index: 10; }
+.marca { font-weight: 500; font-size: 14px; letter-spacing: -.01em; color: var(--mut);
+         text-decoration: none; white-space: nowrap; }
+.marca b { color: var(--ink); font-weight: 800; }
+.topo nav { display: flex; gap: 2px; }
+.topo nav a { color: var(--mut); text-decoration: none; font-size: 13px; font-weight: 500;
+              padding: 6px 10px; border-radius: 6px; }
+.topo nav a:hover { color: var(--ink); background: var(--bg); }
+
+main { max-width: 780px; margin: 28px auto 64px; padding: 0 16px; }
+
+/* painéis */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+        padding: 20px; margin-bottom: 14px; }
+h1 { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 4px; }
+h2 { font-size: 11px; font-weight: 600; text-transform: uppercase;
+     letter-spacing: .07em; color: var(--mut); margin: 0 0 14px; }
+.sub { color: var(--mut); font-size: 13px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: var(--mono); font-size: .92em; background: var(--bg);
+       padding: 1px 5px; border-radius: 4px; }
+
+/* Mono fica reservado a número e código — é onde ele serve pra alguma coisa
+   (alinhamento de dígito, distinguir 0 de O). Rótulo é texto, e texto é Inter. */
+/* números */
+.contador { font-family: var(--mono); font-size: 44px; font-weight: 600;
+            letter-spacing: -.03em; line-height: 1; }
+.num, td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* status por ponto, não por emoji */
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px;
+       vertical-align: 1px; }
+.dot.ok { background: var(--ok); }
+.dot.err { background: var(--err); }
+.dot.mut { background: var(--line); }
+
+/* conta */
+.conta { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; object-fit: cover;
+          background: var(--accent-soft); border: 1px solid var(--line); }
+.avatar.g { width: 40px; height: 40px; }
+.avatar.letra { display: flex; align-items: center; justify-content: center;
+                font-weight: 700; font-size: 13px; color: var(--accent); }
+
+/* tabelas */
+.twrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+table { border-collapse: collapse; width: 100%; }
+td, th { padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 13px;
+         text-align: left; white-space: nowrap; }
+td:first-child, th:first-child { padding-left: 0; }
+td:last-child, th:last-child { padding-right: 0; }
+tr:last-child td { border-bottom: 0; }
+th { color: var(--mut); font-weight: 600; font-size: 11px;
+     text-transform: uppercase; letter-spacing: .06em; }
+td.num, th.num { text-align: right; }
+/* a classe .num serve pra alinhar número; no cabeçalho ela só alinha à direita,
+   porque rótulo continua sendo texto */
+th.num { font-family: var(--sans); }
+
+/* formulários */
+label { font-size: 12px; font-weight: 600; display: block; margin-top: 14px; }
+label .sub { font-weight: 400; }
+input[type=text], input[type=password], textarea {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+  font: inherit; margin-top: 5px; background: var(--panel); color: var(--ink); }
+input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+textarea { min-height: 92px; resize: vertical; }
+.baixar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.baixar label { font-size: 13px; color: var(--sub, #666); display: flex; gap: 6px; align-items: center; }
+input[type=date], select { border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; }
+button, .btn { border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-size: 13px;
+  font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 16px;
+  background: var(--ink); color: #fff; }
+.btn:hover, button:hover { opacity: .88; text-decoration: none; }
+button.quieto { background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
+button.perigo { background: none; color: var(--err); font-weight: 500; padding-left: 8px; }
+
+/* avisos */
+.aviso { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px;
+         background: #fffbeb; border: 1px solid #fde68a; }
+.aviso.ok { background: #f0fdf4; border-color: #bbf7d0; }
+.aviso.grave { background: #fef2f2; border-color: #fecaca; }
+
+/* pílulas */
+.pill { display: inline-block; background: var(--accent-soft); color: var(--accent);
+        border-radius: 6px; padding: 2px 8px; font-size: 12px;
+        font-weight: 600; margin: 0 4px 4px 0; }
+
+/* thread */
+.thread { display: flex; flex-direction: column; gap: 8px; }
+.linha-in { display: flex; align-items: flex-end; gap: 8px; }
+.msg { max-width: 82%; border-radius: 12px; padding: 8px 12px; font-size: 13px; }
+.msg .meta { display: block; font-size: 10.5px; color: var(--mut); margin-top: 3px; }
+.msg.in  { background: var(--panel); border: 1px solid var(--line);
+           align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg.out { background: var(--accent-soft); align-self: flex-end; border-bottom-right-radius: 4px; }
+
+/* grade de stats */
+.grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
+         margin-bottom: 14px; }
+.mini { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+        padding: 13px 15px; }
+.mini b { font-family: var(--mono); font-size: 20px; font-weight: 600; display: block; }
+.mini span { font-size: 10.5px; color: var(--mut); font-weight: 600;
+             text-transform: uppercase; letter-spacing: .06em; }
+
+@media (max-width: 560px) {
+  .topo { padding: 0 12px; }
+  .topo .so-largo { display: none; }
+  .topo nav { gap: 0; }
+  .topo nav a { padding: 6px 7px; }
+  .contador { font-size: 34px; }
+  .card { padding: 16px; }
+  .twrap { margin: 0 -16px; padding: 0 16px; }
+  /* iOS dá zoom automático em campo com fonte < 16px */
+  input[type=text], input[type=password], input[type=search], textarea { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="topo">
+  <a class="marca" href="/painel"><span class="so-largo">comenta </span><b>EU QUERO</b></a>
+  <nav>
+    <a href="/painel">Painel</a>
+    <a href="/fluxos">Fluxos</a>
+    <a href="/leads">Leads</a>
+    {% if wa_ativo() %}<a href="/transmissoes">Transmissões</a>
+    <a href="/templates">Templates</a>{% endif %}
+    <a href="/config">Config<span class="so-largo">urações</span></a>
+    <a href="/logout">Sair</a>
+  </nav>
+</div>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

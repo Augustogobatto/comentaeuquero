@@ -1,0 +1,53 @@
+name: Bug
+description: Algo não funciona como deveria
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir: confira o tutorial em https://comentaeuquero.com.
+        **Não cole tokens, App Secret, senha ou o conteúdo do seu .env.**
+        Vulnerabilidade de segurança não vai aqui: veja o SECURITY.md.
+  - type: input
+    id: versao
+    attributes:
+      label: Versão
+      description: Aparece no painel (rodapé) ou no ping de /health.
+      placeholder: "1.7.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: instalacao
+    attributes:
+      label: Como você roda
+      options:
+        - Docker (imagem do ghcr)
+        - Docker (build local)
+        - Direto com uvicorn
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava que acontecesse
+    validations:
+      required: true
+  - type: textarea
+    id: aconteceu
+    attributes:
+      label: O que aconteceu
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passo a passo pra reproduzir
+      description: Gatilho usado (comentário, story, live, DM), o fluxo e o que a pessoa fez.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs ou prints
+      description: Remova tokens e dados pessoais antes de colar.
+      render: text

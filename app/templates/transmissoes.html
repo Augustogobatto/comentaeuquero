@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Transmissões — comenta EU QUERO{% endblock %}
+{% block content %}
+
+{% if erro %}<div class="aviso grave">{{ erro }}</div>{% endif %}
+
+{% if wa_configurado %}
+<div class="cabeca">
+  <div>
+    <h1>Transmissões</h1>
+    <p class="sub" style="margin:2px 0 0;">Um template aprovado mandado pelo WhatsApp pra quem deu
+      consentimento. Quem pediu SAIR nunca recebe.</p>
+  </div>
+  <a class="btn" href="/transmissoes/nova">Nova transmissão</a>
+</div>
+
+{% for t in transmissoes %}
+<div class="card">
+  <div class="linha-topo">
+    <a href="/transmissoes/{{ t.id }}"><b>{{ t.nome }}</b></a>
+    <span class="sub">{{ {'agendada': 'agendada', 'enviando': 'enviando', 'pausada': 'pausada', 'concluida': 'concluída', 'cancelada': 'cancelada'}.get(t.status, t.status) }}
+      {% if t.agendada_para %}· {{ t.agendada_para|brasilia }}{% endif %}</span>
+  </div>
+  <p class="sub">template {{ t.template }} · {{ t.relatorio.enviado }} enviadas · {{ t.relatorio.entregue }} entregues ·
+    {{ t.relatorio.lido }} lidas · {{ t.relatorio.respondido }} responderam · {{ t.relatorio.falhou }} falharam</p>
+</div>
+{% else %}
+<div class="card vazio">
+  <p class="sub">Nenhuma transmissão ainda.</p>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

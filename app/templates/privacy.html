@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Política de Privacidade — comenta EU QUERO{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Política de Privacidade</h1>
+  <p>Esta instância do <b>comenta EU QUERO</b> é uma ferramenta de automação de respostas
+  do Instagram operada pelo titular da própria conta conectada.</p>
+  <h2>Dados que o app acessa</h2>
+  <p>Comentários públicos e mensagens recebidas na conta conectada (texto, nome de usuário
+  do autor e identificadores), exclusivamente para enviar uma resposta automática quando a
+  interação contém uma palavra-chave configurada pelo titular.</p>
+  <p>Quando um fluxo pergunta algo diretamente à pessoa (por exemplo telefone ou e-mail),
+  a resposta é guardada no banco desta instância, associada ao perfil de quem respondeu.
+  Também são guardados nome, @, foto de perfil e número de seguidores, obtidos da própria
+  API do Instagram, além das etiquetas que o fluxo atribuir.</p>
+  <h2>O que fazemos com os dados</h2>
+  <p>Os eventos são processados no servidor do titular da conta e registrados em log técnico
+  para operação e depuração. Os dados não são vendidos, compartilhados nem usados para
+  qualquer outra finalidade.</p>
+  <h2>Retenção</h2>
+  {% if retencao_dias %}
+  <p>Registros de quem interagiu são apagados automaticamente após
+  <b>{{ retencao_dias }} dias</b> sem nova interação, junto com as etiquetas e os campos
+  informados pela pessoa.{% if retencao_eventos_dias %} O log técnico é apagado após
+  {{ retencao_eventos_dias }} dias.{% endif %}</p>
+  {% else %}
+  <p>Os registros são mantidos enquanto durar a operação desta instância. O titular pode
+  configurar um prazo de descarte automático.</p>
+  {% endif %}
+  <h2>Exclusão a pedido</h2>
+  <p>Qualquer pessoa pode pedir a exclusão dos próprios dados enviando uma mensagem no
+  direct para a conta conectada. O titular apaga o registro pelo painel, e a exclusão
+  remove junto as etiquetas, os campos informados e o histórico de conversa automática.</p>
+</div>
+{% endblock %}

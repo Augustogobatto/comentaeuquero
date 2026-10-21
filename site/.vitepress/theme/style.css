@@ -1,0 +1,610 @@
+/* comenta EU QUERO: tema do site e das docs.
+   Referência: home nova do n8n (grade de pontos, nav em pílula, rótulos mono em caixa alta,
+   fluxo como hero). Acento pistache, raro. Contexto em site/.impeccable.md. */
+
+:root {
+  --ceq-sans: 'Host Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --ceq-mono: 'Fragment Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* neutros com um fio do verde do acento; sem preto nem branco puros */
+  --ceq-paper: oklch(0.982 0.003 135);
+  --ceq-soft: oklch(0.951 0.004 135);
+  --ceq-soft-2: oklch(0.918 0.005 135);
+  --ceq-line: oklch(0.9 0.005 135);
+  --ceq-border: oklch(0.81 0.007 135);
+  --ceq-dot: oklch(0.83 0.006 135);
+  --ceq-dot-faint: oklch(0.91 0.005 135);
+  --ceq-ink: oklch(0.215 0.01 135);
+  --ceq-ink-2: oklch(0.4 0.01 135);
+  --ceq-ink-3: oklch(0.52 0.01 135);
+
+  /* acento: pistache claro. Só no botão principal, na aba ativa e no fluxo aceso. */
+  --ceq-acc: oklch(0.9 0.105 128);
+  --ceq-acc-hover: oklch(0.86 0.12 128);
+  --ceq-acc-ink: oklch(0.29 0.06 135);
+  --ceq-acc-line: oklch(0.64 0.145 138);
+
+  /* bloco escuro (casos de uso): escuro nos dois temas */
+  --ceq-vault: oklch(0.225 0.008 135);
+  --ceq-vault-0: oklch(0.2 0.007 135);
+  --ceq-vault-2: oklch(0.285 0.008 135);
+  --ceq-vault-3: oklch(0.34 0.008 135);
+  --ceq-vault-dot: oklch(0.33 0.008 135);
+  --ceq-vault-ink: oklch(0.95 0.004 135);
+  --ceq-vault-ink-2: oklch(0.76 0.006 135);
+
+  --ceq-danger: oklch(0.5 0.17 25);
+  --ceq-danger-soft: oklch(0.96 0.02 25);
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 48px;
+  --space-2xl: 96px;
+
+  --ceq-dots: radial-gradient(circle at 1px 1px, var(--ceq-dot) 1px, transparent 1.4px);
+  --ceq-dots-faint: radial-gradient(circle at 1px 1px, var(--ceq-dot-faint) 1px, transparent 1.4px);
+
+  --vp-font-family-base: var(--ceq-sans);
+  --vp-font-family-mono: var(--ceq-mono);
+
+  --vp-c-bg: var(--ceq-paper);
+  --vp-c-bg-alt: var(--ceq-paper);
+  --vp-c-bg-elv: var(--ceq-paper);
+  --vp-c-bg-soft: var(--ceq-soft);
+  --vp-c-text-1: var(--ceq-ink);
+  --vp-c-text-2: var(--ceq-ink-2);
+  --vp-c-text-3: var(--ceq-ink-3);
+  --vp-c-divider: var(--ceq-line);
+  --vp-c-gutter: var(--ceq-line);
+  --vp-c-border: var(--ceq-border);
+
+  --vp-c-brand-1: var(--ceq-ink);
+  --vp-c-brand-2: var(--ceq-ink-2);
+  --vp-c-brand-3: var(--ceq-ink);
+  --vp-c-brand-soft: var(--ceq-soft);
+
+  --vp-button-brand-bg: var(--ceq-ink);
+  --vp-button-brand-text: var(--ceq-paper);
+  --vp-button-brand-hover-bg: var(--ceq-ink-2);
+  --vp-button-brand-hover-text: var(--ceq-paper);
+
+  --vp-c-tip-1: var(--ceq-ink);
+  --vp-c-tip-2: var(--ceq-ink);
+  --vp-c-tip-3: var(--ceq-ink);
+  --vp-c-tip-soft: var(--ceq-soft);
+  --vp-c-note-1: var(--ceq-ink-2);
+  --vp-c-note-soft: var(--ceq-soft);
+  --vp-c-warning-1: var(--ceq-ink);
+  --vp-c-warning-2: var(--ceq-ink);
+  --vp-c-warning-3: var(--ceq-ink);
+  --vp-c-warning-soft: var(--ceq-soft);
+  --vp-c-danger-1: var(--ceq-danger);
+  --vp-c-danger-soft: var(--ceq-danger-soft);
+
+  --vp-code-color: var(--ceq-ink);
+  --vp-code-bg: var(--ceq-soft);
+  --vp-code-block-bg: var(--ceq-soft);
+  --vp-code-block-divider-color: var(--ceq-line);
+  --vp-code-copy-code-bg: var(--ceq-paper);
+  --vp-code-copy-code-border-color: var(--ceq-line);
+  --vp-code-copy-code-active-text: var(--ceq-ink);
+  --vp-code-font-size: 0.875em;
+
+  --vp-nav-height: 76px;
+  --vp-nav-bg-color: transparent;
+  --vp-sidebar-bg-color: var(--ceq-paper);
+  --vp-local-search-bg: var(--ceq-paper);
+  --vp-local-search-result-bg: var(--ceq-paper);
+  --vp-local-search-result-border: var(--ceq-line);
+  --vp-local-search-highlight-bg: var(--ceq-acc);
+  --vp-local-search-highlight-text: var(--ceq-acc-ink);
+  --vp-layout-max-width: 1360px;
+}
+
+.dark {
+  --ceq-paper: oklch(0.175 0.005 135);
+  --ceq-soft: oklch(0.228 0.006 135);
+  --ceq-soft-2: oklch(0.268 0.007 135);
+  --ceq-line: oklch(0.285 0.007 135);
+  --ceq-border: oklch(0.38 0.008 135);
+  --ceq-dot: oklch(0.31 0.007 135);
+  --ceq-dot-faint: oklch(0.235 0.006 135);
+  --ceq-ink: oklch(0.94 0.004 135);
+  --ceq-ink-2: oklch(0.8 0.006 135);
+  --ceq-ink-3: oklch(0.66 0.008 135);
+
+  --ceq-acc: oklch(0.85 0.115 128);
+  --ceq-acc-hover: oklch(0.89 0.1 128);
+  --ceq-acc-ink: oklch(0.24 0.05 135);
+  --ceq-acc-line: oklch(0.8 0.13 132);
+
+  --ceq-vault: oklch(0.215 0.006 135);
+  --ceq-vault-0: oklch(0.19 0.006 135);
+  --ceq-vault-2: oklch(0.27 0.007 135);
+  --ceq-vault-3: oklch(0.33 0.008 135);
+  --ceq-vault-dot: oklch(0.3 0.007 135);
+
+  --ceq-danger: oklch(0.74 0.13 25);
+  --ceq-danger-soft: oklch(0.24 0.03 25);
+}
+
+body {
+  background-color: var(--ceq-paper);
+  background-image: var(--ceq-dots-faint);
+  background-size: 22px 22px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--ceq-acc);
+  color: var(--ceq-acc-ink);
+}
+
+/* rótulo mono em caixa alta: a "voz de máquina" do site */
+.ceq-rotulo {
+  font-family: var(--ceq-mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Nav em pílula flutuante (home e docs) ---------- */
+
+.VPNav {
+  background: transparent !important;
+}
+.VPNavBar,
+.VPNavBar:not(.home),
+.VPNavBar.screen-open {
+  background: transparent !important;
+  border-bottom: 0 !important;
+}
+.VPNavBar .wrapper {
+  padding: 10px 12px !important;
+}
+.VPNavBar > .wrapper > .container {
+  max-width: calc(var(--vp-layout-max-width) - 32px) !important;
+  height: 56px;
+  padding: 0 8px 0 18px;
+  border-radius: 999px;
+  background: var(--ceq-soft);
+  box-shadow: 0 0 0 1px var(--ceq-line);
+  pointer-events: auto;
+}
+.VPNavBar .title,
+.VPNavBar .content-body {
+  height: 56px !important;
+  background: transparent !important;
+}
+.VPNavBar.has-sidebar .title {
+  position: static !important;
+  width: auto !important;
+  padding: 0 !important;
+  border-bottom: 0 !important;
+}
+.VPNavBar.has-sidebar .content {
+  padding: 0 !important;
+}
+.VPNavBar .divider,
+.VPNavBar .divider-line {
+  display: none !important;
+}
+.VPNavBarTitle .title {
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  border-bottom: 0 !important;
+}
+.ceq-marca {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.VPNavBarMenuLink,
+.VPNavBarMenuGroup .button {
+  font-family: var(--ceq-mono) !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ceq-ink-2);
+}
+.VPNavBarMenuLink:hover,
+.VPNavBarMenuLink.active {
+  color: var(--ceq-ink);
+}
+.VPNavBarMenuLink.active {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1px;
+}
+/* "Instalar" vira o botão de acento da direita; no menu do celular continua como link */
+.VPNavBarMenu a[href$='/instalar/'] {
+  display: none;
+}
+.VPNavBarSearch .DocSearch-Button {
+  border-radius: 999px;
+  background: var(--ceq-paper);
+}
+.VPNavBarSearch .DocSearch-Button-Placeholder {
+  font-family: var(--ceq-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.VPNavBar .menu + .appearance::before,
+.VPNavBar .menu + .social-links::before,
+.VPNavBar .appearance + .social-links::before {
+  background-color: var(--ceq-border) !important;
+}
+.ceq-nav-cta {
+  display: none;
+  margin-left: 12px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--ceq-acc);
+  color: var(--ceq-acc-ink);
+  font-family: var(--ceq-mono);
+  font-size: 12.5px;
+  line-height: 40px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background-color 0.15s;
+}
+.ceq-nav-cta:hover {
+  background: var(--ceq-acc-hover);
+}
+@media (min-width: 768px) {
+  .ceq-nav-cta {
+    display: inline-block;
+  }
+}
+.VPNavBarHamburger {
+  height: 56px !important;
+  border-radius: 999px;
+}
+.VPNavScreen {
+  background: var(--ceq-paper) !important;
+}
+.VPNavScreenMenuLink,
+.VPNavScreenMenuGroup .button-text {
+  font-family: var(--ceq-mono);
+  font-size: 13px !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* barra "Menu / Nesta página" do celular */
+.VPLocalNav {
+  background: color-mix(in oklch, var(--ceq-paper) 92%, transparent) !important;
+  backdrop-filter: none !important;
+  border-bottom: 1px solid var(--ceq-line) !important;
+}
+.VPLocalNav .menu-text,
+.VPLocalNavOutlineDropdown button {
+  font-family: var(--ceq-mono);
+  font-size: 12px !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Lateral e rodapé ---------- */
+
+.VPSidebar {
+  background: transparent !important;
+  border-right: 1px solid var(--ceq-line);
+}
+@media (max-width: 959px) {
+  .VPSidebar {
+    background: var(--ceq-paper) !important;
+  }
+}
+.VPSidebar .curtain {
+  display: none;
+}
+@media (min-width: 960px) {
+  /* a lateral começa embaixo da pílula, sem o fio atravessar o topo */
+  .VPSidebar {
+    top: var(--vp-nav-height) !important;
+    padding-top: 16px !important;
+  }
+}
+.VPSidebarItem.level-0 > .item > .text,
+.VPSidebarItem.level-0 > .item .text {
+  font-family: var(--ceq-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ceq-ink-3);
+}
+.VPSidebarItem .text {
+  font-size: 14.5px;
+  line-height: 22px;
+}
+.VPSidebarItem.level-1 .text {
+  color: var(--ceq-ink-2);
+}
+.VPSidebarItem.level-1 > .item {
+  border-radius: 8px;
+}
+.VPSidebarItem.is-active > .item .link > .text {
+  color: var(--ceq-ink);
+  font-weight: 600;
+}
+.VPSidebarItem .indicator {
+  display: none;
+}
+.VPDocAsideOutline .outline-title {
+  font-family: var(--ceq-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ceq-ink-3);
+}
+.VPDocAsideOutline .outline-link {
+  font-size: 13px;
+}
+.VPDocAsideOutline .outline-link.active {
+  color: var(--ceq-ink);
+  font-weight: 600;
+}
+.VPDocAsideOutline .outline-marker {
+  display: none;
+}
+.VPFooter {
+  border-top: 1px solid var(--ceq-line) !important;
+  background: var(--ceq-paper);
+}
+.VPFooter .message,
+.VPFooter .copyright {
+  font-size: 13px;
+  color: var(--ceq-ink-3);
+}
+.VPFooter a {
+  color: var(--ceq-ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.VPDocFooter .pager-link {
+  border-radius: 14px;
+  background: var(--ceq-paper);
+}
+.VPDocFooter .pager-link .desc {
+  font-family: var(--ceq-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.VPDocFooter .pager-link:hover {
+  border-color: var(--ceq-ink-3);
+}
+
+/* ---------- Texto da documentação ---------- */
+
+.vp-doc {
+  font-size: 16.5px;
+}
+.vp-doc h1 {
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 560;
+}
+.vp-doc h2 {
+  border-top: 0;
+  margin-top: 56px;
+  padding-top: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 580;
+}
+.vp-doc h3 {
+  margin-top: 32px;
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 620;
+}
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.65;
+}
+.vp-doc p,
+.vp-doc ul,
+.vp-doc ol {
+  max-width: 72ch;
+}
+.vp-doc strong {
+  font-weight: 650;
+}
+.vp-doc a {
+  color: var(--ceq-ink);
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--ceq-border);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s;
+}
+.vp-doc a:hover {
+  color: var(--ceq-ink);
+  text-decoration-color: var(--ceq-ink);
+}
+.vp-doc .header-anchor {
+  text-decoration: none;
+  color: var(--ceq-ink-3);
+}
+.vp-doc :not(pre) > code {
+  border-radius: 5px;
+  padding: 2px 5px;
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+
+/* tabelas: só fios horizontais */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.vp-doc tr {
+  border-top: 0;
+  border-bottom: 1px solid var(--ceq-line);
+}
+.vp-doc tr:nth-child(2n) {
+  background: transparent;
+}
+.vp-doc th,
+.vp-doc td {
+  border: 0;
+  padding: 10px 16px 10px 0;
+  vertical-align: top;
+}
+.vp-doc th {
+  background: transparent;
+  font-family: var(--ceq-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ceq-ink-3);
+  border-bottom: 1px solid var(--ceq-ink-3);
+}
+.vp-doc td:last-child,
+.vp-doc th:last-child {
+  padding-right: 0;
+}
+
+/* avisos: caixa inteira com fio fino, sem faixa lateral */
+.vp-doc .custom-block {
+  border-radius: 12px;
+  border: 1px solid var(--ceq-line);
+  background: var(--ceq-soft);
+  padding: 14px 18px;
+  font-size: 15px;
+}
+.vp-doc .custom-block .custom-block-title {
+  font-family: var(--ceq-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.vp-doc .custom-block.warning {
+  border-color: var(--ceq-border);
+  background: var(--ceq-paper);
+}
+.vp-doc .custom-block.danger {
+  border-color: var(--ceq-danger);
+  background: var(--ceq-danger-soft);
+}
+.vp-doc .custom-block a {
+  color: inherit;
+}
+.vp-doc .custom-block code {
+  background: var(--ceq-paper);
+}
+.vp-doc .custom-block.warning code {
+  background: var(--ceq-soft);
+}
+
+/* blocos de código */
+.vp-doc div[class*='language-'] {
+  border-radius: 12px;
+  border: 1px solid var(--ceq-line);
+}
+@media (max-width: 639px) {
+  .vp-doc div[class*='language-'] {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+.vp-doc div[class*='language-'] > span.lang {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ceq-ink-3);
+}
+.vp-doc [class*='language-'] code {
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+/* ---------- Print pendente ---------- */
+
+.ceq-print {
+  margin: 16px 0;
+  padding: 14px 18px;
+  border: 1px dashed var(--ceq-border);
+  border-radius: 12px;
+  background: var(--ceq-paper);
+  color: var(--ceq-ink-3);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ceq-print__rotulo {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--ceq-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ceq-ink-2);
+}
+
+/* ---------- Estado (próximos upgrades) ---------- */
+
+.ceq-estado {
+  display: inline-block;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-family: var(--ceq-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 22px;
+  border: 1px solid var(--ceq-border);
+  white-space: nowrap;
+  color: var(--ceq-ink-2);
+}
+.ceq-estado--planejado {
+  color: var(--ceq-ink-3);
+  border-color: var(--ceq-line);
+  background: var(--ceq-paper);
+}
+.ceq-estado--andamento {
+  color: var(--ceq-ink);
+  border-color: var(--ceq-ink-3);
+  background: var(--ceq-soft);
+}
+.ceq-estado--feito {
+  background: var(--ceq-acc);
+  border-color: var(--ceq-acc);
+  color: var(--ceq-acc-ink);
+}
+
+/* página 404 */
+.NotFound .title {
+  letter-spacing: 0;
+}
+.NotFound .link {
+  border-radius: 999px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ceq-ink);
+  outline-offset: 2px;
+}

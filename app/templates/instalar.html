@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Primeiro acesso · comenta EU QUERO{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 10vh auto 0;">
+  <div class="marca" style="font-size: 15px;">comenta <b>EU QUERO</b></div>
+  <h1>Crie a senha do seu painel</h1>
+  <p class="sub">Esta tela só aparece uma vez. Guarde a senha: não existe "esqueci a senha" por e-mail.</p>
+  {% if erro %}<div class="aviso">{{ erro }}</div>{% endif %}
+  <form method="post" action="/instalar">
+    <input type="hidden" name="t" value="{{ t }}">
+    <label>Senha</label>
+    <input type="password" name="senha" minlength="8" required autofocus autocomplete="new-password">
+    <label>Repita a senha</label>
+    <input type="password" name="senha2" minlength="8" required autocomplete="new-password">
+    <button type="submit" style="width: 100%;">Salvar e entrar</button>
+  </form>
+</div>
+{% endblock %}

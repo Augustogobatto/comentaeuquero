@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Configurações — comenta EU QUERO{% endblock %}
+{% block content %}
+
+{% if salvo %}<div class="aviso ok"><span class="dot ok"></span>Configurações salvas. Valem agora, sem reiniciar nada.</div>{% endif %}
+{% if teste == 'ok' %}<div class="aviso ok"><span class="dot ok"></span>Alerta de teste enviado. Confere no Telegram.</div>
+{% elif teste == 'falhou' %}<div class="aviso grave"><span class="dot err"></span>O teste não chegou. Confere o token do bot e o chat ID (e se você já mandou <code>/start</code> pro bot).</div>{% endif %}
+
+<form method="post" action="/config">
+
+<div class="card">
+  <h2>App da Meta</h2>
+  <p class="sub" style="margin-top:0;">O ID e a chave secreta do app que você criou na Meta (passo a passo logo abaixo).
+  Sem a chave secreta, a instância recusa os eventos da Meta: é com ela que confere que o evento veio mesmo de lá.</p>
+  {% if estado_chave == 'invalida' and not so_env %}<div class="aviso grave"><code>CEQ_ENCRYPTION_KEY</code> com chave inválida no .env: a chave secreta fica guardada sem cifra no banco desta instância. Gere uma chave nova (Fernet) e reinicie.</div>
+  {% elif not cifrado and not so_env %}<div class="aviso">Sem <code>CEQ_ENCRYPTION_KEY</code> no .env: a chave secreta fica guardada sem cifra no banco desta instância.</div>{% endif %}
+
+  <label>ID do app do Instagram
+    {% if id_no_env %}<span class="sub">definido no .env (o .env tem precedência; mude por lá)</span>{% endif %}
+    <input type="text" name="meta_app_id" inputmode="numeric" value="{{ meta_app_id }}" autocomplete="off"{% if id_no_env %} disabled{% endif %}>
+  </label>
+
+  <label>Chave secreta do app do Instagram
+    <span class="sub">{% if so_env %}definida no .env (o .env tem precedência; mude por lá){% elif tem_secret %}salva, deixe em branco pra manter{% else %}a do Instagram, não a do app geral{% endif %}</span>
+    <input type="password" name="meta_app_secret" value="" autocomplete="off"{% if tem_secret %} placeholder="•••••• (preenchido)"{% endif %}{% if so_env %} disabled{% endif %}>
+  </label>
+
+  <details style="margin-top:14px;"{% if not (meta_app_id and tem_secret) %} open{% endif %}>
+    <summary><strong>Crie seu app na Meta</strong> (uma vez só, uns 15 minutos)</summary>
+    <ol style="padding-left:18px; line-height:1.6;">
+      <li>Em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Meus apps → Criar aplicativo</strong>, caso de uso <strong>Gerenciar mensagens e conteúdo no Instagram</strong>, tipo <strong>Empresa</strong>. O nome não pode ter "Instagram", "Insta", "IG", "Meta" nem "Facebook".</li>
+      <li>No app: <strong>Casos de uso → Personalizar → Configuração da API com login do Instagram</strong> → <strong>Add all required permissions</strong>. Copie o <strong>ID do app do Instagram</strong> e a <strong>Chave secreta do app do Instagram</strong> (os da página do Instagram, não os do app geral) e cole nos campos acima.</li>
+      <li><strong>Funções do app → Funções → Adicionar pessoas → Testador do Instagram</strong> com o @ da sua conta. No Instagram: <strong>Configurações → Site e apps → Convites de testador → Aceitar</strong>.</li>
+      <li>Em <strong>Configurar webhooks</strong>: URL de callback <code>{{ base_url or "SEU_ENDERECO" }}/webhook</code> e token de verificação <code>{{ verify_token }}</code> → <strong>Verificar e salvar</strong>.</li>
+      <li>Em <strong>Configurar o login da empresa</strong>, adicione a URI <code>{{ base_url or "SEU_ENDERECO" }}/auth/callback</code>. Em <strong>Configurações do app → Básico</strong>, URL da Política de Privacidade <code>{{ base_url or "SEU_ENDERECO" }}/privacy</code>. Depois, menu lateral → <strong>Publicar</strong>: sem publicar, os comentários não chegam.</li>
+    </ol>
+  </details>
+</div>
+
+<div class="card">
+  <h2>Ritmo de envio</h2>
+  <p class="sub" style="margin-top:0;">A instância nunca passa deste teto de mensagens por hora.
+  Passou, a mensagem espera a vez na fila em vez de ser descartada. O limite oficial da Meta é
+  {{ teto_maximo }} private replies/hora por conta; ficar bem abaixo é o que mantém a automação
+  fora do radar de spam.</p>
+
+  <div class="grade" style="margin-bottom:4px;">
+    <div class="mini"><b class="num">{{ envios_hora }}</b><span>enviadas na última hora</span></div>
+    <div class="mini"><b class="num">{{ teto }}</b><span>teto atual / hora</span></div>
+    <div class="mini">
+      {% if cooldown_s > 0 %}<b class="num" style="color:var(--err);">{{ (cooldown_s / 60) | round(0) | int }} min</b><span>em espera a pedido da Meta</span>
+      {% else %}<b class="num" style="color:var(--ok);">livre</b><span>sem cooldown da Meta</span>{% endif %}
+    </div>
+  </div>
+
+  <label>Teto de envios por hora
+    <span class="sub">entre 10 e {{ teto_maximo }} · padrão 180</span>
+    <input type="text" name="teto" inputmode="numeric" value="{{ teto }}" style="max-width:140px;">
+  </label>
+</div>
+
+<div class="card">
+  <h2>Alerta no Telegram</h2>
+  <p class="sub" style="margin-top:0;">Quando a Meta pedir pausa (rate limit), a instância segura os
+  envios sozinha e te avisa uma vez por episódio.
+  {% if alerta_ativo %}<span class="dot ok"></span><strong>Ativo.</strong>
+  {% else %}<span class="dot mut"></span>Desativado: preencha os dois campos pra ligar.{% endif %}</p>
+
+  <label>Token do bot
+    <span class="sub">{% if alerta_token_dica %}salvo ({{ alerta_token_dica }}) — deixe em branco pra manter{% else %}crie um bot com o @BotFather e cole o token aqui{% endif %}</span>
+    <input type="password" name="alerta_token" value="" autocomplete="off">
+  </label>
+
+  <label>Chat ID
+    <span class="sub">seu ID no Telegram — o @userinfobot te diz qual é</span>
+    <input type="text" name="alerta_chat" value="{{ alerta_chat }}">
+  </label>
+
+  {% if alerta_ativo %}
+  <label style="font-weight:400; margin-top:16px;">
+    <input type="checkbox" name="desativar_alerta" value="1" style="width:auto; margin-right:6px;">
+    Desativar o alerta (a trava de envio continua funcionando, só para de avisar)
+  </label>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>WhatsApp (API oficial)</h2>
+  {% if wa_aviso == 'sem_conta' %}<div class="aviso grave">Conecte a conta do Instagram primeiro: o número de WhatsApp fica ligado a ela.</div>{% endif %}
+  {% if wa.configurado %}
+  <p class="sub" style="margin-top:0;"><span class="dot ok"></span><b>{{ wa.nome or 'Número ligado' }}</b>{% if wa.numero %} · {{ wa.numero }}{% endif %}
+    {% if wa.qualidade %} · qualidade {{ wa.qualidade|lower }}{% endif %}
+    · limite {% if wa.limite is none %}ilimitado{% else %}{{ wa.limite }}/24h{% endif %}
+    {% if wa.atualizado_em %} · atualizado {{ wa.atualizado_em|quando }}{% endif %}</p>
+  {% else %}
+  <p class="sub" style="margin-top:0;">Opcional. Liga um número de WhatsApp Business (API oficial da Meta) a esta conta:
+  fluxos no WhatsApp, pedir o número no direct e transmissões com template. Sem isso, nada muda.</p>
+  {% endif %}
+
+  <label>ID da conta do WhatsApp Business (WABA)
+    <input type="text" name="wa_waba_id" inputmode="numeric" value="{{ wa_ids.waba }}" autocomplete="off"></label>
+  <label>ID do número de telefone (Phone Number ID)
+    <input type="text" name="wa_phone_number_id" inputmode="numeric" value="{{ wa_ids.phone }}" autocomplete="off"></label>
+  <label>Token permanente
+    <span class="sub">{% if tem_wa_token %}salvo, deixe em branco pra manter{% else %}de um usuário do sistema (System User) com whatsapp_business_messaging e whatsapp_business_management{% endif %}</span>
+    <input type="password" name="wa_token" value="" autocomplete="off"{% if tem_wa_token %} placeholder="•••••• (preenchido)"{% endif %}></label>
+  <label>Chave secreta do app geral da Meta
+    <span class="sub">{% if wa_secret_no_env %}definida no .env{% elif tem_wa_secret %}salva, deixe em branco pra manter{% else %}é com ela que a Meta assina os eventos do WhatsApp (Configurações do app → Básico){% endif %}</span>
+    <input type="password" name="meta_wa_app_secret" value="" autocomplete="off"{% if tem_wa_secret %} placeholder="•••••• (preenchido)"{% endif %}{% if wa_secret_no_env %} disabled{% endif %}></label>
+  {% if wa.configurado %}
+  <label>Teto de mensagens de fluxo por hora no WhatsApp
+    <span class="sub">entre 10 e {{ wa_teto_maximo }}; separado do teto do Instagram</span>
+    <input type="text" name="wa_envios_hora" inputmode="numeric" value="{{ wa_teto }}" style="max-width:140px;"></label>
+  <label>Limite diário de transmissões
+    <span class="sub">pessoas por 24h; vazio = o limite do número na Meta</span>
+    <input type="text" name="wa_limite_diario" inputmode="numeric" value="{{ wa_limite_diario }}" style="max-width:140px;">
+    <input type="hidden" name="wa_limite_diario_no_form" value="1"></label>
+  <label style="font-weight:400; margin-top:16px;">
+    <input type="checkbox" name="wa_desconectar" value="1" style="width:auto; margin-right:6px;">
+    Desligar o WhatsApp desta conta (apaga o token salvo)</label>
+  {% endif %}
+
+  <details style="margin-top:14px;"{% if not wa.configurado %} open{% endif %}>
+    <summary><strong>Como ligar</strong> (no mesmo app da Meta do Instagram)</summary>
+    <ol style="padding-left:18px; line-height:1.6;">
+      <li>No app em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Adicionar produto → WhatsApp</strong>. Em <strong>Configuração da API</strong> estão o ID da conta do WhatsApp Business e o ID do número.</li>
+      <li>Token permanente: no <strong>Gerenciador de Negócios → Usuários do sistema</strong>, crie um usuário, dê acesso ao app e à conta do WhatsApp e gere um token com <code>whatsapp_business_messaging</code> e <code>whatsapp_business_management</code>.</li>
+      <li>Webhook: o mesmo <code>{{ base_url or "SEU_ENDERECO" }}/webhook</code> com o mesmo token de verificação <code>{{ verify_token }}</code>. Em <strong>WhatsApp → Configuração → Campos do webhook</strong>, assine: <code>messages</code> (mensagens recebidas e status de enviado/entregue/lido), <code>user_preferences</code> (a pessoa parou ou voltou a aceitar marketing), <code>phone_number_quality_update</code> (qualidade e limite do número) e <code>business_capability_update</code> (aumento de limite aprovado). Os templates não precisam de webhook: o painel sincroniza com a Meta.</li>
+      <li>A chave secreta que assina o WhatsApp é a do <strong>app geral</strong> (Configurações do app → Básico), diferente da do Instagram acima.</li>
+    </ol>
+  </details>
+</div>
+
+<button type="submit">Salvar configurações</button>
+</form>
+
+{% if alerta_ativo %}
+<form method="post" action="/config/teste-alerta" style="display:inline; margin-left:8px;">
+  <button type="submit" class="quieto">Enviar alerta de teste</button>
+</form>
+{% endif %}
+
+<div class="card" style="margin-top:14px;">
+  <h2>Backup</h2>
+  <p class="sub" style="margin-top:0;">Cópia do banco inteiro (fluxos, leads, conta conectada), pra guardar ou levar pra outro servidor.</p>
+  <p>O backup não leva o .env: guarde a sua CEQ_ENCRYPTION_KEY, ou cole a chave secreta da Meta de novo ao restaurar.</p>
+  <a href="/api/backup.db" download>Baixar backup do banco</a>
+</div>
+
+<div class="card" style="margin-top:14px;">
+  <h2>Ambiente (somente leitura)</h2>
+  <p class="sub" style="margin-top:0;">Estas são as variáveis de instalação. Moram no
+  <code>.env</code> do servidor e mudam por lá, com reinício da instância (o app da Meta também
+  pode vir do formulário acima). Valores secretos aparecem só como status.</p>
+  <div class="twrap"><table>
+    <tr><th>Variável</th><th>Valor</th></tr>
+    {% for nome, valor, ok in env_status %}
+    <tr>
+      <td><code>{{ nome }}</code></td>
+      <td><span class="dot {{ 'ok' if ok else 'err' }}"></span>{{ valor }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</div>
+
+{% endblock %}
