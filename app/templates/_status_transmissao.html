@@ -1,0 +1,3 @@
+{#- badge de estado da transmissão, igual ao StatusDisparoTag do Blocos. Espera `t` no contexto. -#}
+{%- set _cls = {'agendada': 'acento', 'enviando': 'acento', 'pausada': 'atencao', 'concluida': 'forte', 'cancelada': 'erro'}.get(t.status, '') -%}
+<span class="tag {{ _cls }}"><span class="dot"></span>{{ {'agendada': 'agendada', 'enviando': 'enviando', 'pausada': 'pausada', 'concluida': 'concluída', 'cancelada': 'cancelada'}.get(t.status, t.status) }}</span>

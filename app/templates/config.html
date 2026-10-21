@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Configurações — comenta EU QUERO{% endblock %}
+{% block largura %}estreita{% endblock %}
 {% block content %}
+<div class="cabeca"><div><h1>Configurações</h1><p class="sub" style="margin:0;">App da Meta, ritmo de envio, alertas e WhatsApp. Valem na hora, sem reiniciar.</p></div></div>
 
 {% if salvo %}<div class="aviso ok"><span class="dot ok"></span>Configurações salvas. Valem agora, sem reiniciar nada.</div>{% endif %}
 {% if teste == 'ok' %}<div class="aviso ok"><span class="dot ok"></span>Alerta de teste enviado. Confere no Telegram.</div>
@@ -12,8 +14,8 @@
   <h2>App da Meta</h2>
   <p class="sub" style="margin-top:0;">O ID e a chave secreta do app que você criou na Meta (passo a passo logo abaixo).
   Sem a chave secreta, a instância recusa os eventos da Meta: é com ela que confere que o evento veio mesmo de lá.</p>
-  {% if estado_chave == 'invalida' and not so_env %}<div class="aviso grave"><code>CEQ_ENCRYPTION_KEY</code> com chave inválida no .env: a chave secreta fica guardada sem cifra no banco desta instância. Gere uma chave nova (Fernet) e reinicie.</div>
-  {% elif not cifrado and not so_env %}<div class="aviso">Sem <code>CEQ_ENCRYPTION_KEY</code> no .env: a chave secreta fica guardada sem cifra no banco desta instância.</div>{% endif %}
+  {% if estado_chave == 'invalida' and not so_env %}<div class="aviso grave"><span class="dot err"></span><code>CEQ_ENCRYPTION_KEY</code> com chave inválida no .env: a chave secreta fica guardada sem cifra no banco desta instância. Gere uma chave nova (Fernet) e reinicie.</div>
+  {% elif not cifrado and not so_env %}<div class="aviso"><span class="dot warn"></span>Sem <code>CEQ_ENCRYPTION_KEY</code> no .env: a chave secreta fica guardada sem cifra no banco desta instância.</div>{% endif %}
 
   <label>ID do app do Instagram
     {% if id_no_env %}<span class="sub">definido no .env (o .env tem precedência; mude por lá)</span>{% endif %}
@@ -25,9 +27,9 @@
     <input type="password" name="meta_app_secret" value="" autocomplete="off"{% if tem_secret %} placeholder="•••••• (preenchido)"{% endif %}{% if so_env %} disabled{% endif %}>
   </label>
 
-  <details style="margin-top:14px;"{% if not (meta_app_id and tem_secret) %} open{% endif %}>
+  <details{% if not (meta_app_id and tem_secret) %} open{% endif %}>
     <summary><strong>Crie seu app na Meta</strong> (uma vez só, uns 15 minutos)</summary>
-    <ol style="padding-left:18px; line-height:1.6;">
+    <ol>
       <li>Em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Meus apps → Criar aplicativo</strong>, caso de uso <strong>Gerenciar mensagens e conteúdo no Instagram</strong>, tipo <strong>Empresa</strong>. O nome não pode ter "Instagram", "Insta", "IG", "Meta" nem "Facebook".</li>
       <li>No app: <strong>Casos de uso → Personalizar → Configuração da API com login do Instagram</strong> → <strong>Add all required permissions</strong>. Copie o <strong>ID do app do Instagram</strong> e a <strong>Chave secreta do app do Instagram</strong> (os da página do Instagram, não os do app geral) e cole nos campos acima.</li>
       <li><strong>Funções do app → Funções → Adicionar pessoas → Testador do Instagram</strong> com o @ da sua conta. No Instagram: <strong>Configurações → Site e apps → Convites de testador → Aceitar</strong>.</li>
@@ -44,7 +46,7 @@
   {{ teto_maximo }} private replies/hora por conta; ficar bem abaixo é o que mantém a automação
   fora do radar de spam.</p>
 
-  <div class="grade" style="margin-bottom:4px;">
+  <div class="grade">
     <div class="mini"><b class="num">{{ envios_hora }}</b><span>enviadas na última hora</span></div>
     <div class="mini"><b class="num">{{ teto }}</b><span>teto atual / hora</span></div>
     <div class="mini">
@@ -53,9 +55,14 @@
     </div>
   </div>
 
+  <div class="presets" data-alvo="teto" role="group" aria-label="Ritmo pronto">
+    <button type="button" class="chip-preset" data-valor="90">Cauteloso <span>90/h</span></button>
+    <button type="button" class="chip-preset" data-valor="180">Padrão <span>180/h</span></button>
+    <button type="button" class="chip-preset" data-valor="360">Acelerado <span>360/h</span></button>
+  </div>
   <label>Teto de envios por hora
-    <span class="sub">entre 10 e {{ teto_maximo }} · padrão 180</span>
-    <input type="text" name="teto" inputmode="numeric" value="{{ teto }}" style="max-width:140px;">
+    <span class="sub">entre 10 e {{ teto_maximo }} · padrão 180 · ou escolha um ritmo pronto acima</span>
+    <input type="text" name="teto" inputmode="numeric" value="{{ teto }}" class="campo-curto">
   </label>
 </div>
 
@@ -63,8 +70,9 @@
   <h2>Alerta no Telegram</h2>
   <p class="sub" style="margin-top:0;">Quando a Meta pedir pausa (rate limit), a instância segura os
   envios sozinha e te avisa uma vez por episódio.
-  {% if alerta_ativo %}<span class="dot ok"></span><strong>Ativo.</strong>
-  {% else %}<span class="dot mut"></span>Desativado: preencha os dois campos pra ligar.{% endif %}</p>
+  </p>
+  <p>{% if alerta_ativo %}<span class="tag ok"><span class="dot"></span>Ativo</span>
+  {% else %}<span class="tag"><span class="dot"></span>Desativado</span> <span class="sub">preencha os dois campos pra ligar</span>{% endif %}</p>
 
   <label>Token do bot
     <span class="sub">{% if alerta_token_dica %}salvo ({{ alerta_token_dica }}) — deixe em branco pra manter{% else %}crie um bot com o @BotFather e cole o token aqui{% endif %}</span>
@@ -77,8 +85,8 @@
   </label>
 
   {% if alerta_ativo %}
-  <label style="font-weight:400; margin-top:16px;">
-    <input type="checkbox" name="desativar_alerta" value="1" style="width:auto; margin-right:6px;">
+  <label class="check">
+    <input type="checkbox" name="desativar_alerta" value="1">
     Desativar o alerta (a trava de envio continua funcionando, só para de avisar)
   </label>
   {% endif %}
@@ -86,9 +94,9 @@
 
 <div class="card">
   <h2>WhatsApp (API oficial)</h2>
-  {% if wa_aviso == 'sem_conta' %}<div class="aviso grave">Conecte a conta do Instagram primeiro: o número de WhatsApp fica ligado a ela.</div>{% endif %}
+  {% if wa_aviso == 'sem_conta' %}<div class="aviso grave"><span class="dot err"></span>Conecte a conta do Instagram primeiro: o número de WhatsApp fica ligado a ela.</div>{% endif %}
   {% if wa.configurado %}
-  <p class="sub" style="margin-top:0;"><span class="dot ok"></span><b>{{ wa.nome or 'Número ligado' }}</b>{% if wa.numero %} · {{ wa.numero }}{% endif %}
+  <p class="sub" style="margin-top:0;"><span class="tag ok"><span class="dot"></span>ligado</span> <b style="color:var(--texto);">{{ wa.nome or 'Número ligado' }}</b>{% if wa.numero %} · {{ wa.numero }}{% endif %}
     {% if wa.qualidade %} · qualidade {{ wa.qualidade|lower }}{% endif %}
     · limite {% if wa.limite is none %}ilimitado{% else %}{{ wa.limite }}/24h{% endif %}
     {% if wa.atualizado_em %} · atualizado {{ wa.atualizado_em|quando }}{% endif %}</p>
@@ -110,19 +118,21 @@
   {% if wa.configurado %}
   <label>Teto de mensagens de fluxo por hora no WhatsApp
     <span class="sub">entre 10 e {{ wa_teto_maximo }}; separado do teto do Instagram</span>
-    <input type="text" name="wa_envios_hora" inputmode="numeric" value="{{ wa_teto }}" style="max-width:140px;"></label>
+    <input type="text" name="wa_envios_hora" inputmode="numeric" value="{{ wa_teto }}" class="campo-curto"></label>
   <label>Limite diário de transmissões
     <span class="sub">pessoas por 24h; vazio = o limite do número na Meta</span>
-    <input type="text" name="wa_limite_diario" inputmode="numeric" value="{{ wa_limite_diario }}" style="max-width:140px;">
+    <input type="text" name="wa_limite_diario" inputmode="numeric" value="{{ wa_limite_diario }}" class="campo-curto">
     <input type="hidden" name="wa_limite_diario_no_form" value="1"></label>
-  <label style="font-weight:400; margin-top:16px;">
-    <input type="checkbox" name="wa_desconectar" value="1" style="width:auto; margin-right:6px;">
+  <div class="perigo-zona">
+  <label class="check">
+    <input type="checkbox" name="wa_desconectar" value="1">
     Desligar o WhatsApp desta conta (apaga o token salvo)</label>
+  </div>
   {% endif %}
 
-  <details style="margin-top:14px;"{% if not wa.configurado %} open{% endif %}>
+  <details{% if not wa.configurado %} open{% endif %}>
     <summary><strong>Como ligar</strong> (no mesmo app da Meta do Instagram)</summary>
-    <ol style="padding-left:18px; line-height:1.6;">
+    <ol>
       <li>No app em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Adicionar produto → WhatsApp</strong>. Em <strong>Configuração da API</strong> estão o ID da conta do WhatsApp Business e o ID do número.</li>
       <li>Token permanente: no <strong>Gerenciador de Negócios → Usuários do sistema</strong>, crie um usuário, dê acesso ao app e à conta do WhatsApp e gere um token com <code>whatsapp_business_messaging</code> e <code>whatsapp_business_management</code>.</li>
       <li>Webhook: o mesmo <code>{{ base_url or "SEU_ENDERECO" }}/webhook</code> com o mesmo token de verificação <code>{{ verify_token }}</code>. Em <strong>WhatsApp → Configuração → Campos do webhook</strong>, assine: <code>messages</code> (mensagens recebidas e status de enviado/entregue/lido), <code>user_preferences</code> (a pessoa parou ou voltou a aceitar marketing), <code>phone_number_quality_update</code> (qualidade e limite do número) e <code>business_capability_update</code> (aumento de limite aprovado). Os templates não precisam de webhook: o painel sincroniza com a Meta.</li>
@@ -131,23 +141,25 @@
   </details>
 </div>
 
+<div class="barra-salvar">
 <button type="submit">Salvar configurações</button>
+</div>
 </form>
 
 {% if alerta_ativo %}
-<form method="post" action="/config/teste-alerta" style="display:inline; margin-left:8px;">
+<form method="post" action="/config/teste-alerta" class="form-teste">
   <button type="submit" class="quieto">Enviar alerta de teste</button>
 </form>
 {% endif %}
 
-<div class="card" style="margin-top:14px;">
+<div class="card" style="margin-top:24px;">
   <h2>Backup</h2>
   <p class="sub" style="margin-top:0;">Cópia do banco inteiro (fluxos, leads, conta conectada), pra guardar ou levar pra outro servidor.</p>
-  <p>O backup não leva o .env: guarde a sua CEQ_ENCRYPTION_KEY, ou cole a chave secreta da Meta de novo ao restaurar.</p>
-  <a href="/api/backup.db" download>Baixar backup do banco</a>
+  <p class="sub">O backup não leva o .env: guarde a sua CEQ_ENCRYPTION_KEY, ou cole a chave secreta da Meta de novo ao restaurar.</p>
+  <a class="btn quieto" href="/api/backup.db" download style="margin-top:4px;">Baixar backup do banco</a>
 </div>
 
-<div class="card" style="margin-top:14px;">
+<div class="card">
   <h2>Ambiente (somente leitura)</h2>
   <p class="sub" style="margin-top:0;">Estas são as variáveis de instalação. Moram no
   <code>.env</code> do servidor e mudam por lá, com reinício da instância (o app da Meta também
@@ -163,4 +175,15 @@
   </table></div>
 </div>
 
+<style>
+.perigo-zona { margin-top: 20px; padding-top: 16px; border-top: 1px dashed color-mix(in srgb, var(--erro) 35%, var(--linha)); }
+.perigo-zona label { color: var(--erro); }
+.barra-salvar { position: sticky; bottom: 0; z-index: 5; background: var(--fundo);
+  border-top: 1px solid var(--linha); margin: 0 -16px; padding: 12px 16px; }
+.barra-salvar button { margin: 0; }
+.form-teste { margin: 0 0 24px; }
+.form-teste button { margin-top: 12px; }
+@media (min-width: 768px) { .barra-salvar { margin: 0 -32px; padding: 12px 32px; } }
+.card table td { white-space: normal; }
+</style>
 {% endblock %}

@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Transmissão — comenta EU QUERO{% endblock %}
+{% block largura %}estreita{% endblock %}
 {% block content %}
 
 {% if modo == 'nova' %}
-<h1>Nova transmissão</h1>
+<div class="cabeca"><div><h1>Nova transmissão</h1><p class="sub" style="margin:0;">Escolha o template, quem recebe e quando.</p></div></div>
 {% if not templates_wa %}
-<div class="aviso">Nenhum template aprovado. Crie ou sincronize em <a href="/templates">Templates</a>.</div>
+<div class="aviso"><span class="dot warn"></span>Nenhum template aprovado. Crie ou sincronize em <a href="/templates">Templates</a>.</div>
 {% else %}
 <form method="post" action="/transmissoes">
 <div class="card">
+  <h2>O quê</h2>
   <label>Nome <span class="sub">só pra você achar depois</span>
     <input type="text" name="nome" placeholder="Convite da live de quinta"></label>
 
@@ -17,7 +19,7 @@
       {% for t in templates_wa %}<option value="{{ t.nome }}|{{ t.idioma }}" data-cat="{{ t.categoria|lower }}"
         data-vars="{{ t.variaveis|join(',') }}" data-corpo="{{ t.corpo }}">{{ t.nome }} ({{ t.idioma }}, {{ t.categoria|lower }})</option>{% endfor %}
     </select></label>
-  <p class="sub" id="corpo"></p>
+  <p class="msg" id="corpo" style="margin-top:12px;"></p>
   <div id="variaveis"></div>
 </div>
 
@@ -36,7 +38,7 @@
   <label id="l_campo_valor" hidden>Igual a <span class="sub">vazio = qualquer valor preenchido</span>
     <input type="text" name="campo_valor" id="campo_valor"></label>
   <input type="hidden" name="publico_valor" id="publico_valor">
-  <p><b id="total">…</b> <span class="sub">pessoas vão receber</span></p>
+  <p class="total-linha"><b id="total" class="num">…</b> <span class="sub">pessoas vão receber</span></p>
   <p class="sub">Limite do número: {% if limite_diario is none %}sem limite{% else %}{{ limite_diario }} pessoas por 24h{% endif %}
     · {{ enviados_24h }} já receberam template nas últimas 24h. Passou do limite, a fila espera.</p>
   <p class="sub">Custo estimado: <b id="custo">…</b> (estimativa pela tabela da Meta pro Brasil; o valor real vem na fatura).</p>
@@ -44,14 +46,20 @@
 
 <div class="card">
   <h2>Quando</h2>
-  <label style="font-weight:400;"><input type="radio" name="quando" value="agora" checked style="width:auto;"> enviar agora</label>
-  <label style="font-weight:400;"><input type="radio" name="quando" value="agendar" style="width:auto;"> agendar (horário de Brasília)</label>
+  <label class="check"><input type="radio" name="quando" value="agora" checked> enviar agora</label>
+  <label class="check" style="margin-top:8px;"><input type="radio" name="quando" value="agendar"> agendar (horário de Brasília)</label>
   <input type="datetime-local" name="data_hora">
-  <label>Ritmo <span class="sub">mensagens por minuto, entre {{ ritmo_min }} e {{ ritmo_max }}</span>
-    <input type="number" name="ritmo" value="20" min="{{ ritmo_min }}" max="{{ ritmo_max }}" style="max-width:140px;"></label>
+  <h2 style="margin-top:24px;">Ritmo</h2>
+  <div class="presets" data-alvo="ritmo" role="group" aria-label="Ritmo pronto">
+    <button type="button" class="chip-preset" data-valor="{{ [10, ritmo_max]|min }}">Devagar <span>{{ [10, ritmo_max]|min }}/min</span></button>
+    <button type="button" class="chip-preset" data-valor="{{ [20, ritmo_max]|min }}">Padrão <span>{{ [20, ritmo_max]|min }}/min</span></button>
+    <button type="button" class="chip-preset" data-valor="{{ [60, ritmo_max]|min }}">Rápido <span>{{ [60, ritmo_max]|min }}/min</span></button>
+  </div>
+  <label>Mensagens por minuto <span class="sub">entre {{ ritmo_min }} e {{ ritmo_max }}</span>
+    <input type="number" name="ritmo" value="20" min="{{ ritmo_min }}" max="{{ ritmo_max }}" class="campo-curto"></label>
 </div>
 
-<button type="submit">Criar transmissão</button>
+<div class="acoes"><button type="submit">Criar transmissão</button></div>
 </form>
 
 <script>
@@ -99,21 +107,21 @@ desenhaVars()
 <div class="cabeca">
   <div>
     <h1>{{ t.nome }}</h1>
-    <p class="sub" style="margin:2px 0 0;">template {{ t.template }} · {{ {'agendada': 'agendada', 'enviando': 'enviando', 'pausada': 'pausada', 'concluida': 'concluída', 'cancelada': 'cancelada'}.get(t.status, t.status) }}
+    <p class="sub estado-linha" style="margin:0;">{% include "_status_transmissao.html" %} template {{ t.template }}
       {% if t.agendada_para %}· {{ t.agendada_para|brasilia }}{% endif %} · {{ t.ritmo_por_minuto }}/min</p>
   </div>
 </div>
 
-<div class="card">
+<div>
   <div class="grade">
     <div class="mini"><b class="num">{{ r.total or previsto }}</b><span>{{ 'na fila' if r.total else 'previstas' }}</span></div>
     <div class="mini"><b class="num">{{ r.enviado }}</b><span>enviadas</span></div>
     <div class="mini"><b class="num">{{ r.entregue }}</b><span>entregues</span></div>
     <div class="mini"><b class="num">{{ r.lido }}</b><span>lidas</span></div>
     <div class="mini"><b class="num">{{ r.respondido }}</b><span>responderam</span></div>
-    <div class="mini"><b class="num">{{ r.falhou }}</b><span>falharam</span></div>
+    <div class="mini"><b class="num"{% if r.falhou %} style="color:var(--erro);"{% endif %}>{{ r.falhou }}</b><span>falharam</span></div>
     <div class="mini"><b class="num">{{ r.pulado }}</b><span>puladas (pediram SAIR)</span></div>
-    {% if r.revisar %}<div class="mini"><b class="num">{{ r.revisar }}</b><span>a revisar (envio interrompido, pode ter chegado)</span></div>{% endif %}
+    {% if r.revisar %}<div class="mini"><b class="num" style="color:var(--aviso);">{{ r.revisar }}</b><span>a revisar (envio interrompido, pode ter chegado)</span></div>{% endif %}
     <div class="mini"><b class="num">{{ r.pendente }}</b><span>pendentes</span></div>
   </div>
   <p class="sub">Custo estimado: US$ {{ '%.2f'|format(r.custo_usd) }}{% if r.por_categoria %} ({% for c, n in r.por_categoria.items() %}{{ n }} {{ c }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Estimativa; o valor real vem na fatura da Meta.</p>
@@ -121,11 +129,17 @@ desenhaVars()
 </div>
 
 {% if t.status in ('agendada', 'enviando', 'pausada') %}
-<div style="display:flex; gap:8px;">
+<div class="acoes">
   {% if t.status == 'enviando' %}<form method="post" action="/transmissoes/{{ t.id }}/pausar"><button class="quieto">Pausar</button></form>{% endif %}
   {% if t.status == 'pausada' %}<form method="post" action="/transmissoes/{{ t.id }}/retomar"><button>Retomar</button></form>{% endif %}
-  <form method="post" action="/transmissoes/{{ t.id }}/cancelar" onsubmit="return confirm('Cancelar esta transmissão? Quem ainda não recebeu não vai receber.')"><button class="quieto">Cancelar</button></form>
+  <form method="post" action="/transmissoes/{{ t.id }}/cancelar" onsubmit="return confirm('Cancelar esta transmissão? Quem ainda não recebeu não vai receber.')"><button class="perigo">Cancelar transmissão</button></form>
 </div>
 {% endif %}
 {% endif %}
+<style>
+.total-linha { margin: 20px 0 8px; display: flex; align-items: baseline; gap: 8px; }
+.total-linha b { font-size: 26px; font-weight: 500; letter-spacing: -.02em; }
+.estado-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+input[type=datetime-local] { max-width: 280px; margin-top: 8px; }
+</style>
 {% endblock %}

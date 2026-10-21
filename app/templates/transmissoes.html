@@ -2,32 +2,41 @@
 {% block title %}Transmissões — comenta EU QUERO{% endblock %}
 {% block content %}
 
-{% if erro %}<div class="aviso grave">{{ erro }}</div>{% endif %}
+{% if erro %}<div class="aviso grave"><span class="dot err"></span>{{ erro }}</div>{% endif %}
 
 {% if wa_configurado %}
 <div class="cabeca">
   <div>
     <h1>Transmissões</h1>
-    <p class="sub" style="margin:2px 0 0;">Um template aprovado mandado pelo WhatsApp pra quem deu
+    <p class="sub" style="margin:0;">Um template aprovado mandado pelo WhatsApp pra quem deu
       consentimento. Quem pediu SAIR nunca recebe.</p>
   </div>
   <a class="btn" href="/transmissoes/nova">Nova transmissão</a>
 </div>
 
 {% for t in transmissoes %}
-<div class="card">
+<div class="card transm">
   <div class="linha-topo">
-    <a href="/transmissoes/{{ t.id }}"><b>{{ t.nome }}</b></a>
-    <span class="sub">{{ {'agendada': 'agendada', 'enviando': 'enviando', 'pausada': 'pausada', 'concluida': 'concluída', 'cancelada': 'cancelada'}.get(t.status, t.status) }}
-      {% if t.agendada_para %}· {{ t.agendada_para|brasilia }}{% endif %}</span>
+    <a class="nome" href="/transmissoes/{{ t.id }}">{{ t.nome }}</a>
+    <span class="estado">{% include "_status_transmissao.html" %}
+      {% if t.agendada_para %}<span class="sub">{{ t.agendada_para|brasilia }}</span>{% endif %}</span>
   </div>
-  <p class="sub">template {{ t.template }} · {{ t.relatorio.enviado }} enviadas · {{ t.relatorio.entregue }} entregues ·
+  <p class="sub" style="margin:8px 0 0;">template {{ t.template }} · {{ t.relatorio.enviado }} enviadas · {{ t.relatorio.entregue }} entregues ·
     {{ t.relatorio.lido }} lidas · {{ t.relatorio.respondido }} responderam · {{ t.relatorio.falhou }} falharam</p>
 </div>
 {% else %}
-<div class="card vazio">
-  <p class="sub">Nenhuma transmissão ainda.</p>
+<div class="vazio">
+  <p class="vazio-t">Nenhuma transmissão ainda</p>
+  <p class="sub">Crie a primeira em Nova transmissão.</p>
 </div>
 {% endfor %}
 {% endif %}
+<style>
+.transm { padding: 20px 24px; margin-bottom: 12px; }
+.transm .linha-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.transm .nome { font-size: 16px; font-weight: 600; text-decoration: none; }
+.transm .nome:hover { text-decoration: underline; text-decoration-color: var(--linha); }
+.transm .estado { display: inline-flex; align-items: center; gap: 8px; }
+@media (max-width: 560px) { .transm { padding: 16px; } }
+</style>
 {% endblock %}

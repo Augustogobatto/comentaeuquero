@@ -3,21 +3,21 @@
 {% block content %}
 
 {% if not wa_configurado %}
-<div class="aviso">Ligue um número de WhatsApp em <a href="/config">Configurações</a> pra usar templates.</div>
+<div class="aviso"><span class="dot warn"></span>Ligue um número de WhatsApp em <a href="/config">Configurações</a> pra usar templates.</div>
 {% else %}
 
 <div class="cabeca">
   <div>
     <h1>Templates do WhatsApp</h1>
-    <p class="sub" style="margin:2px 0 0;">Template é a mensagem pré-aprovada que pode abrir
+    <p class="sub" style="margin:0;">Template é a mensagem pré-aprovada que pode abrir
       conversa com quem está fora da janela de 24h. Quem aprova é a Meta; costuma levar de
       minutos a 24h.</p>
   </div>
-  <button class="btn" id="sincronizar">Sincronizar com a Meta</button>
+  <button class="btn quieto" id="sincronizar">Sincronizar com a Meta</button>
 </div>
 
-<div class="card">
-  {% if templates_wa %}
+{% if templates_wa %}
+  <div class="twrap" style="margin-bottom:24px;">
   <table class="tabela">
     <thead><tr><th>Nome</th><th>Idioma</th><th>Categoria</th><th>Status</th><th>Texto</th></tr></thead>
     <tbody>
@@ -26,18 +26,18 @@
         <td><b>{{ t.nome }}</b></td>
         <td>{{ t.idioma }}</td>
         <td>{{ t.categoria|lower }}</td>
-        <td><span class="status-tpl {{ t.status|lower }}">{{ {'APPROVED': 'aprovado', 'PENDING': 'em análise', 'REJECTED': 'recusado'}.get(t.status, t.status|lower) }}</span></td>
+        <td><span class="tag {{ {'APPROVED': 'ok', 'PENDING': 'atencao', 'REJECTED': 'erro'}.get(t.status, '') }}"><span class="dot"></span>{{ {'APPROVED': 'aprovado', 'PENDING': 'em análise', 'REJECTED': 'recusado'}.get(t.status, t.status|lower) }}</span></td>
         <td class="sub">{{ t.corpo }}{% if t.botoes %} · botões: {{ t.botoes|join(', ') }}{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
-  {% else %}
-  <p class="sub">Nenhum template ainda. Sincronize os que já existem na sua conta da Meta ou crie um abaixo.</p>
-  {% endif %}
-</div>
+  </div>
+{% else %}
+  <div class="vazio" style="margin-bottom:24px;"><p class="vazio-t">Nenhum template ainda</p><p class="sub">Sincronize os que já existem na sua conta da Meta ou crie um abaixo.</p></div>
+{% endif %}
 
-<div class="card">
+<div class="card novo-tpl">
   <h2>Novo template</h2>
   <label>Nome <span class="sub">minúsculas, números e _ (ex.: boas_vindas)</span>
     <input id="nome" placeholder="boas_vindas" /></label>
@@ -52,19 +52,16 @@
   <div id="exemplos"></div>
   <label>Botões de resposta <span class="sub">até 3, separados por vírgula, opcional</span>
     <input id="botoes" placeholder="Quero, Agora não" /></label>
-  <p class="sub">Prévia</p>
+  <p class="sub" style="margin:20px 0 6px;">Prévia</p>
   <div class="msg" id="previa"></div>
   <button class="btn" id="criar">Enviar pra aprovação</button>
   <p id="resultado" class="sub"></p>
 </div>
 
 <style>
-.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tabela th, .tabela td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line, #eee); vertical-align: top; }
-.status-tpl { font-weight: 600; }
-.status-tpl.approved { color: #047857; }
-.status-tpl.pending { color: #b45309; }
-.status-tpl.rejected { color: #b91c1c; }
+.tabela td { vertical-align: top; }
+.tabela td.sub { white-space: normal; min-width: 280px; font-size: 14px; }
+.novo-tpl { max-width: 720px; }
 </style>
 <script>
 const $ = (id) => document.getElementById(id)

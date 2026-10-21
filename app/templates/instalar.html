@@ -1,18 +1,19 @@
 {% extends "base.html" %}
+{% set sem_menu = true %}
 {% block title %}Primeiro acesso · comenta EU QUERO{% endblock %}
-{% block content %}
-<div class="card" style="max-width: 400px; margin: 10vh auto 0;">
-  <div class="marca" style="font-size: 15px;">comenta <b>EU QUERO</b></div>
+{% block solta %}
+<div class="caixa-login" style="max-width:400px;">
+  <span class="nav-marca"><span class="marca-q" aria-hidden="true"><i></i><i></i><i></i><i></i></span>comenta EU QUERO</span>
   <h1>Crie a senha do seu painel</h1>
-  <p class="sub">Esta tela só aparece uma vez. Guarde a senha: não existe "esqueci a senha" por e-mail.</p>
-  {% if erro %}<div class="aviso">{{ erro }}</div>{% endif %}
+  <p class="sub" style="margin:0 0 24px;">Esta tela só aparece uma vez. Guarde a senha: não existe "esqueci a senha" por e-mail.</p>
+  {% if erro %}<div class="aviso grave"><span class="dot err"></span>{{ erro }}</div>{% endif %}
   <form method="post" action="/instalar">
     <input type="hidden" name="t" value="{{ t }}">
-    <label>Senha</label>
-    <input type="password" name="senha" minlength="8" required autofocus autocomplete="new-password">
-    <label>Repita a senha</label>
-    <input type="password" name="senha2" minlength="8" required autocomplete="new-password">
-    <button type="submit" style="width: 100%;">Salvar e entrar</button>
+    <label>Senha <span class="sub">mínimo de 8 caracteres</span>
+    <input type="password" name="senha" minlength="8" required autofocus autocomplete="new-password"></label>
+    <label>Repita a senha
+    <input type="password" name="senha2" minlength="8" required autocomplete="new-password"></label>
+    <button type="submit" class="largo" style="margin-top:20px;">Salvar e entrar</button>
   </form>
 </div>
 {% endblock %}

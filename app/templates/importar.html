@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Importar contatos — comenta EU QUERO{% endblock %}
+{% block largura %}estreita{% endblock %}
 {% block content %}
 
+<div class="cabeca"><div>
 <h1>Importar contatos pro WhatsApp</h1>
-<p class="sub">Quem entra aqui pode receber transmissões. Por isso só entra quem aceitou receber
+<p class="sub" style="margin:0;">Quem entra aqui pode receber transmissões. Por isso só entra quem aceitou receber
   suas mensagens: a Meta derruba a qualidade do número de quem manda pra lista fria.</p>
+</div></div>
 
-{% if erro %}<div class="aviso grave">{{ erro }}</div>{% endif %}
+{% if erro %}<div class="aviso grave"><span class="dot err"></span>{{ erro }}</div>{% endif %}
 
 {% if resultado %}
 <div class="aviso ok"><span class="dot ok"></span>{{ resultado.importados }} contatos importados
@@ -29,13 +32,13 @@
     <textarea name="texto" rows="6" placeholder="Ana, 11 98888-0000"></textarea></label>
   <label>Etiqueta <span class="sub">opcional, pra achar este grupo depois</span>
     <input type="text" name="tag" placeholder="importados_outubro"></label>
-  <label style="font-weight:400; margin-top:16px;">
-    <input type="checkbox" name="usar_campo_telefone" value="1" style="width:auto; margin-right:6px;">
+  <label class="check" style="margin-top:20px;">
+    <input type="checkbox" name="usar_campo_telefone" value="1">
     Incluir os leads do Instagram que já deram o telefone num fluxo (campo <code>telefone</code>)</label>
-  <label style="margin-top:16px;">
-    <input type="checkbox" name="consentimento" value="1" style="width:auto; margin-right:6px;">
+  <label class="check" style="font-weight:500;">
+    <input type="checkbox" name="consentimento" value="1">
     Tenho consentimento destes contatos para enviar mensagens pelo WhatsApp</label>
-  <p class="sub">Quem mandar SAIR ou PARAR depois continua fora de qualquer envio. Até {{ limite }} contatos por vez.</p>
+  <p class="sub" style="margin-top:16px;">Quem mandar SAIR ou PARAR depois continua fora de qualquer envio. Até {{ limite }} contatos por vez.</p>
   <button type="submit">Importar</button>
 </div>
 </form>

@@ -4,166 +4,100 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}comenta EU QUERO{% endblock %}</title>
+{# mesmo script de tema do Blocos (lib/tema/script.ts): roda antes de pintar #}
+<script>(function(){try{var t=localStorage.getItem('blocos_tema')||'sistema';var e=t==='escuro'||(t!=='claro'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',e);}catch(_){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #f7f7f8;
-  --panel: #ffffff;
-  --ink: #111113;
-  --mut: #6f6f78;
-  --line: #e5e5ea;
-  --accent: #5b3df5;
-  --accent-soft: #f1eefe;
-  --ok: #16a34a;
-  --err: #dc2626;
-  --sans: "Inter", system-ui, -apple-system, sans-serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
-  --r: 10px;
-}
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { font-family: var(--sans); background: var(--bg); color: var(--ink); margin: 0;
-       font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
-
-/* topo */
-.topo { background: var(--panel); border-bottom: 1px solid var(--line); padding: 0 20px;
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        height: 52px; position: sticky; top: 0; z-index: 10; }
-.marca { font-weight: 500; font-size: 14px; letter-spacing: -.01em; color: var(--mut);
-         text-decoration: none; white-space: nowrap; }
-.marca b { color: var(--ink); font-weight: 800; }
-.topo nav { display: flex; gap: 2px; }
-.topo nav a { color: var(--mut); text-decoration: none; font-size: 13px; font-weight: 500;
-              padding: 6px 10px; border-radius: 6px; }
-.topo nav a:hover { color: var(--ink); background: var(--bg); }
-
-main { max-width: 780px; margin: 28px auto 64px; padding: 0 16px; }
-
-/* painéis */
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
-        padding: 20px; margin-bottom: 14px; }
-h1 { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 4px; }
-h2 { font-size: 11px; font-weight: 600; text-transform: uppercase;
-     letter-spacing: .07em; color: var(--mut); margin: 0 0 14px; }
-.sub { color: var(--mut); font-size: 13px; }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-code { font-family: var(--mono); font-size: .92em; background: var(--bg);
-       padding: 1px 5px; border-radius: 4px; }
-
-/* Mono fica reservado a número e código — é onde ele serve pra alguma coisa
-   (alinhamento de dígito, distinguir 0 de O). Rótulo é texto, e texto é Inter. */
-/* números */
-.contador { font-family: var(--mono); font-size: 44px; font-weight: 600;
-            letter-spacing: -.03em; line-height: 1; }
-.num, td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-
-/* status por ponto, não por emoji */
-.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px;
-       vertical-align: 1px; }
-.dot.ok { background: var(--ok); }
-.dot.err { background: var(--err); }
-.dot.mut { background: var(--line); }
-
-/* conta */
-.conta { display: flex; align-items: center; gap: 12px; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; object-fit: cover;
-          background: var(--accent-soft); border: 1px solid var(--line); }
-.avatar.g { width: 40px; height: 40px; }
-.avatar.letra { display: flex; align-items: center; justify-content: center;
-                font-weight: 700; font-size: 13px; color: var(--accent); }
-
-/* tabelas */
-.twrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
-table { border-collapse: collapse; width: 100%; }
-td, th { padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 13px;
-         text-align: left; white-space: nowrap; }
-td:first-child, th:first-child { padding-left: 0; }
-td:last-child, th:last-child { padding-right: 0; }
-tr:last-child td { border-bottom: 0; }
-th { color: var(--mut); font-weight: 600; font-size: 11px;
-     text-transform: uppercase; letter-spacing: .06em; }
-td.num, th.num { text-align: right; }
-/* a classe .num serve pra alinhar número; no cabeçalho ela só alinha à direita,
-   porque rótulo continua sendo texto */
-th.num { font-family: var(--sans); }
-
-/* formulários */
-label { font-size: 12px; font-weight: 600; display: block; margin-top: 14px; }
-label .sub { font-weight: 400; }
-input[type=text], input[type=password], textarea {
-  width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
-  font: inherit; margin-top: 5px; background: var(--panel); color: var(--ink); }
-input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
-button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-textarea { min-height: 92px; resize: vertical; }
-.baixar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.baixar label { font-size: 13px; color: var(--sub, #666); display: flex; gap: 6px; align-items: center; }
-input[type=date], select { border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; }
-button, .btn { border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-size: 13px;
-  font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 16px;
-  background: var(--ink); color: #fff; }
-.btn:hover, button:hover { opacity: .88; text-decoration: none; }
-button.quieto { background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
-button.perigo { background: none; color: var(--err); font-weight: 500; padding-left: 8px; }
-
-/* avisos */
-.aviso { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px;
-         background: #fffbeb; border: 1px solid #fde68a; }
-.aviso.ok { background: #f0fdf4; border-color: #bbf7d0; }
-.aviso.grave { background: #fef2f2; border-color: #fecaca; }
-
-/* pílulas */
-.pill { display: inline-block; background: var(--accent-soft); color: var(--accent);
-        border-radius: 6px; padding: 2px 8px; font-size: 12px;
-        font-weight: 600; margin: 0 4px 4px 0; }
-
-/* thread */
-.thread { display: flex; flex-direction: column; gap: 8px; }
-.linha-in { display: flex; align-items: flex-end; gap: 8px; }
-.msg { max-width: 82%; border-radius: 12px; padding: 8px 12px; font-size: 13px; }
-.msg .meta { display: block; font-size: 10.5px; color: var(--mut); margin-top: 3px; }
-.msg.in  { background: var(--panel); border: 1px solid var(--line);
-           align-self: flex-start; border-bottom-left-radius: 4px; }
-.msg.out { background: var(--accent-soft); align-self: flex-end; border-bottom-right-radius: 4px; }
-
-/* grade de stats */
-.grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
-         margin-bottom: 14px; }
-.mini { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
-        padding: 13px 15px; }
-.mini b { font-family: var(--mono); font-size: 20px; font-weight: 600; display: block; }
-.mini span { font-size: 10.5px; color: var(--mut); font-weight: 600;
-             text-transform: uppercase; letter-spacing: .06em; }
-
-@media (max-width: 560px) {
-  .topo { padding: 0 12px; }
-  .topo .so-largo { display: none; }
-  .topo nav { gap: 0; }
-  .topo nav a { padding: 6px 7px; }
-  .contador { font-size: 34px; }
-  .card { padding: 16px; }
-  .twrap { margin: 0 -16px; padding: 0 16px; }
-  /* iOS dá zoom automático em campo com fonte < 16px */
-  input[type=text], input[type=password], input[type=search], textarea { font-size: 16px; }
-}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ceq.css?v=2">
 </head>
 <body>
-<div class="topo">
-  <a class="marca" href="/painel"><span class="so-largo">comenta </span><b>EU QUERO</b></a>
-  <nav>
-    <a href="/painel">Painel</a>
-    <a href="/fluxos">Fluxos</a>
-    <a href="/leads">Leads</a>
-    {% if wa_ativo() %}<a href="/transmissoes">Transmissões</a>
-    <a href="/templates">Templates</a>{% endif %}
-    <a href="/config">Config<span class="so-largo">urações</span></a>
-    <a href="/logout">Sair</a>
+{% if sem_menu %}
+<div class="solta">{% block solta %}{% endblock %}</div>
+{% else %}
+{% set aqui = request.url.path if request is defined else '' %}
+{% macro item(href, rotulo, icone, extra='') -%}
+  {%- set ativo = aqui == href or aqui.startswith(href ~ '/') or (extra and aqui.startswith(extra)) -%}
+  <a class="nav-item" href="{{ href }}"{% if ativo %} aria-current="page"{% endif %}>
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{{ icone | safe }}</svg>{{ rotulo }}</a>
+{%- endmacro %}
+{% set I_VISAO = '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>' %}
+{% set I_FLUXO = '<rect x="3" y="3" width="8" height="8" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect x="13" y="13" width="8" height="8" rx="2"/>' %}
+{% set I_LEADS = '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' %}
+{% set I_DISPARO = '<path d="M14.5 21.7a.5.5 0 0 0 .9-.1l6.5-19a.5.5 0 0 0-.6-.6l-19 6.5a.5.5 0 0 0-.1.9l7.9 3.2a2 2 0 0 1 1.1 1.1z"/><path d="m21.9 2.1-10.9 10.9"/>' %}
+{% set I_OFICIAL = '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>' %}
+{% set I_CONFIG = '<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>' %}
+{% macro navegacao() %}
+<div class="nav-col">
+  <a class="nav-marca" href="/painel"><span class="marca-q" aria-hidden="true"><i></i><i></i><i></i><i></i></span>comenta EU QUERO</a>
+  <nav class="nav-itens">
+    {{ item('/painel', 'Painel', I_VISAO) }}
+    {{ item('/fluxos', 'Fluxos', I_FLUXO, '/editor') }}
+    {{ item('/leads', 'Leads', I_LEADS) }}
+    {% if wa_ativo() %}{{ item('/transmissoes', 'Transmissões', I_DISPARO) }}
+    {{ item('/templates', 'Templates', I_OFICIAL) }}{% endif %}
   </nav>
+  <div class="nav-pe">
+    {{ item('/config', 'Configurações', I_CONFIG) }}
+    {% if account and account.username %}<p class="nav-conta" title="@{{ account.username }}">@{{ account.username }}</p>{% endif %}
+    <div class="nav-acoes">
+      <button type="button" class="btn-tema" data-tema aria-label="Alternar tema claro/escuro" title="Tema claro/escuro">
+        <svg class="lua" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="sol" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn-sair" href="/logout"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Sair</a>
+    </div>
+  </div>
 </div>
-<main>{% block content %}{% endblock %}</main>
+{% endmacro %}
+<div class="app">
+  <aside class="lateral">{{ navegacao() }}</aside>
+
+  <header class="cab-mobile">
+    <button type="button" class="btn-icone" data-abre-menu aria-label="Abrir menu">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+    </button>
+    <a class="nav-marca" href="/painel"><span class="marca-q" aria-hidden="true"><i></i><i></i><i></i><i></i></span>comenta EU QUERO</a>
+  </header>
+  <div class="gaveta" id="gaveta" aria-hidden="true">
+    <div class="veu" data-fecha-menu></div>
+    <div class="folha" role="dialog" aria-modal="true" aria-label="Menu">
+      <button type="button" class="btn-icone fechar" data-fecha-menu aria-label="Fechar menu">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+      {{ navegacao() }}
+    </div>
+  </div>
+
+  <main><div class="pagina {% block largura %}{% endblock %}">{% block content %}{% endblock %}</div></main>
+</div>
+<script>
+(function () {
+  var g = document.getElementById('gaveta')
+  function menu(abrir) {
+    g.classList.toggle('aberta', abrir); g.setAttribute('aria-hidden', abrir ? 'false' : 'true')
+    document.body.style.overflow = abrir ? 'hidden' : ''
+  }
+  document.querySelectorAll('[data-abre-menu]').forEach(function (b) { b.addEventListener('click', function () { menu(true) }) })
+  document.querySelectorAll('[data-fecha-menu]').forEach(function (b) { b.addEventListener('click', function () { menu(false) }) })
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') menu(false) })
+  document.querySelectorAll('.presets[data-alvo]').forEach(function (grupo) {
+    var campo = document.querySelector('input[name="' + grupo.dataset.alvo + '"]')
+    if (!campo) return
+    var bs = grupo.querySelectorAll('[data-valor]')
+    function marca() { bs.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.valor === campo.value.trim())) }) }
+    bs.forEach(function (b) { b.addEventListener('click', function () { campo.value = b.dataset.valor; marca() }) })
+    campo.addEventListener('input', marca); marca()
+  })
+  document.querySelectorAll('[data-tema]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var escuro = !document.documentElement.classList.contains('dark')
+      document.documentElement.classList.toggle('dark', escuro)
+      try { localStorage.setItem('blocos_tema', escuro ? 'escuro' : 'claro') } catch (_) {}
+    })
+  })
+})()
+</script>
+{% endif %}
 </body>
 </html>

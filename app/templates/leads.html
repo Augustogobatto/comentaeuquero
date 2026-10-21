@@ -7,18 +7,18 @@
 /leads?keyword={{ (filtros.keyword if par != 'keyword' else valor) | urlencode }}&segue={{ (filtros.segue if par != 'segue' else valor) | urlencode }}&busca={{ (filtros.busca if par != 'busca' else valor) | urlencode }}&ordem={{ (ordem if par != 'ordem' else valor) | urlencode }}
 {%- endmacro %}
 
-<div class="card">
-  <div class="cabeca">
+<div class="cabeca">
     <div>
       <h1>Leads</h1>
-      <p class="sub" style="margin:2px 0 0;">Quem pediu seu link, com o perfil do Instagram.{% if wa_ativo() %} · <a href="/leads/importar">Importar contatos</a>{% endif %}</p>
+      <p class="sub" style="margin:0;">Quem pediu seu link, com o perfil do Instagram.{% if wa_ativo() %} · <a href="/leads/importar">Importar contatos</a>{% endif %}</p>
     </div>
     <div class="resumo">
       <div><span class="num">{{ resumo.total }}</span><span class="rot">no total</span></div>
       <div><span class="num">{{ resumo.seguidores }}</span><span class="rot">te seguem</span></div>
     </div>
-  </div>
+</div>
 
+<div class="filtros">
   <form class="busca" method="get" action="/leads">
     <input type="search" name="busca" value="{{ filtros.busca }}" placeholder="Procurar por nome ou @">
     <input type="hidden" name="keyword" value="{{ filtros.keyword }}">
@@ -46,6 +46,8 @@
     <a class="chip {{ 'ligado' if filtros.segue == '0' }}" href="{{ com('segue', '0') }}">não</a>
   </div>
 
+</div>
+
   {% if filtros.keyword or filtros.segue or filtros.busca %}
   <p class="achados">
     {{ leads|length }} lead{{ 's' if leads|length != 1 }} com esse filtro
@@ -56,7 +58,7 @@
   {% if leads %}
   <div class="twrap">
   <table>
-    <tr>
+    <thead><tr>
       <th style="width:30px;"></th>
       <th><a class="ord {{ 'ativo' if ordem == 'nome' }}" href="{{ com('ordem', 'nome') }}">Lead</a></th>
       <th class="num"><a class="ord {{ 'ativo' if ordem == 'seguidores' }}" href="{{ com('ordem', 'seguidores') }}">Seguidores</a></th>
@@ -66,7 +68,7 @@
       <th class="num"><a class="ord {{ 'ativo' if ordem == 'interacoes' }}" href="{{ com('ordem', 'interacoes') }}">Interações</a></th>
       <th class="num"><a class="ord {{ 'ativo' if ordem in ('recente', 'antigo') }}" href="{{ com('ordem', 'antigo' if ordem == 'recente' else 'recente') }}">Última vez</a></th>
       <th style="width:28px;"></th>
-    </tr>
+    </tr></thead><tbody>
     {% for l in leads %}
     <tr>
       <td>
@@ -107,75 +109,61 @@
       </td>
     </tr>
     {% endfor %}
-  </table>
+  </tbody></table>
   </div>
-  <p class="sub" style="margin:12px 0 0; font-size:12px;">
+  <p class="sub" style="margin:12px 0 0;">
     {% if retencao_dias %}Leads parados há mais de {{ retencao_dias }} dias são apagados
     automaticamente, junto com tags e campos capturados.
     {% else %}Os leads ficam guardados por tempo indeterminado. Pra apagar sozinho os
     antigos, defina <code>RETENCAO_LEADS_DIAS</code> no .env.{% endif %}
   </p>
   {% elif filtros.keyword or filtros.segue or filtros.busca %}
-  <p class="sub" style="margin:0;">Nenhum lead com esse filtro. <a href="/leads">Ver todos</a>.</p>
+  <div class="vazio"><p class="vazio-t">Nenhum lead com esse filtro</p><p class="sub"><a href="/leads">Ver todos</a></p></div>
   {% else %}
-  <p class="sub" style="margin:0;">Nenhum lead ainda. Eles entram aqui na primeira interação com um fluxo ativo.</p>
+  <div class="vazio"><p class="vazio-t">Nenhum lead ainda</p><p class="sub">Eles entram aqui na primeira interação com um fluxo ativo.</p></div>
   {% endif %}
-</div>
 
 <style>
-.cabeca { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.resumo { display: flex; gap: 20px; text-align: right; flex: none; }
-.resumo .num { font-size: 20px; font-weight: 600; display: block; line-height: 1.1; }
-.resumo .rot { font-size: 10px; color: var(--mut); font-weight: 600;
-               text-transform: uppercase; letter-spacing: .06em; }
-.busca { display: flex; gap: 8px; margin: 16px 0 4px; }
-.busca input[type=search] {
-  flex: 1; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px;
-  font: inherit; font-size: 13px; background: var(--panel); color: var(--ink);
-}
-.busca input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.resumo { display: flex; gap: 32px; text-align: right; flex: none; }
+.resumo .num { font-size: 26px; font-weight: 500; letter-spacing: -.02em; display: block; line-height: 1.1; }
+.resumo .rot { font-size: 13px; color: var(--suave); font-weight: 500; }
+.filtros { display: grid; gap: 12px; margin-bottom: 16px; }
+.busca { display: flex; gap: 8px; max-width: 520px; }
+.busca input[type=search] { margin-top: 0; flex: 1; }
 .busca button { margin-top: 0; }
-.filtro-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.rot-linha {
-  font-size: 10.5px; color: var(--mut); font-weight: 600; text-transform: uppercase;
-  letter-spacing: .06em; margin-right: 2px; min-width: 72px;
-}
+.filtro-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.rot-linha { font-size: 13px; color: var(--suave); font-weight: 500; margin-right: 4px; min-width: 84px; }
 .chip {
-  display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
-  border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px;
-  color: var(--ink); text-decoration: none; background: var(--panel);
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px;
+  border: 1px solid var(--linha); border-radius: 999px; font-size: 13px;
+  color: var(--texto); text-decoration: none; background: var(--fundo); transition: background .15s;
 }
-.chip:hover { border-color: var(--mut); text-decoration: none; }
-.chip.ligado { background: var(--ink); border-color: var(--ink); color: #fff; }
-.chip .n { font-family: var(--mono); font-variant-numeric: tabular-nums;
-           font-size: 10.5px; color: var(--mut); }
-.chip.ligado .n { color: #ffffffaa; }
-.achados { font-size: 12.5px; color: var(--mut); margin: 14px 0 0; }
+.chip:hover { background: var(--texto-4); text-decoration: none; }
+.chip.ligado { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
+.chip .n { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--suave); }
+.chip.ligado .n { color: var(--fundo); opacity: .7; }
+.achados { font-size: 13px; color: var(--suave); margin: 0 0 12px; }
 .achados a { margin-left: 6px; }
-.twrap { margin-top: 14px; }
 th .ord { color: inherit; text-decoration: none; }
-th .ord:hover { color: var(--ink); text-decoration: none; }
-th .ord.ativo { color: var(--ink); }
-th .ord.ativo::after { content: " ↓"; font-size: 9px; }
+th .ord:hover { color: var(--texto); }
+th .ord.ativo { color: var(--texto); }
+th .ord.ativo::after { content: " ↓"; font-size: 10px; }
+tbody tr:hover { background: var(--texto-4); }
 td .celula { color: inherit; text-decoration: none; }
-td .celula:hover { color: var(--accent); text-decoration: none; }
-a.pill:hover { text-decoration: none; filter: brightness(.95); }
 td form { margin: 0; }
+td a[target] { color: var(--suave); text-decoration: none; font-size: 13px; }
+td a[target]:hover { color: var(--texto); }
 button.apagar {
-  background: none; border: none; padding: 2px; margin: 0; cursor: pointer;
-  color: var(--mut); line-height: 0; opacity: 0; transition: opacity .12s ease;
+  background: none; border: none; padding: 4px; margin: 0; height: auto; cursor: pointer;
+  color: var(--suave); line-height: 0; opacity: 0; transition: opacity .15s, color .15s;
 }
 tr:hover button.apagar { opacity: 1; }
-button.apagar:hover { color: var(--err); opacity: 1; }
-button.apagar:focus-visible { opacity: 1; outline: 2px solid var(--accent); border-radius: 4px; }
+button.apagar:hover { color: var(--erro); opacity: 1; }
+button.apagar:focus-visible { opacity: 1; }
 @media (max-width: 560px) {
-  .cabeca { flex-direction: column; }
   .resumo { text-align: left; }
   .rot-linha { min-width: 0; width: 100%; }
 }
-/* touch não tem hover: o botão de apagar precisa existir sem ele */
-@media (hover: none) {
-  button.apagar { opacity: .5; }
-}
+@media (hover: none) { button.apagar { opacity: .6; } }
 </style>
 {% endblock %}

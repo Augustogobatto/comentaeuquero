@@ -3,13 +3,13 @@
 {% block content %}
 
 {% if not account %}
-<div class="aviso">Conecte sua conta do Instagram no <a href="/painel">Painel</a> antes de criar fluxos.</div>
+<div class="aviso"><span class="dot warn"></span>Conecte sua conta do Instagram no <a href="/painel">Painel</a> antes de criar fluxos.</div>
 {% else %}
 
 <div class="cabeca">
   <div>
     <h1>Fluxos</h1>
-    <p class="sub" style="margin:2px 0 0;">Um fluxo é o caminho que a pessoa percorre depois de
+    <p class="sub" style="margin:0;">Um fluxo é o caminho que a pessoa percorre depois de
       comentar, responder um story ou mandar direct.</p>
   </div>
   <a class="btn" href="/editor?novo=1">Criar fluxo</a>
@@ -19,9 +19,9 @@
 <div class="card fluxo">
   <div class="linha-topo">
     <div class="titulo-fluxo">
-      <span class="dot {{ 'ok' if f.active else 'mut' }}"></span>
       <a href="/editor?f={{ f.id }}">{{ f.name }}</a>
-      {% if not f.active %}<span class="sub">pausado</span>{% endif %}
+      {% if f.active %}<span class="tag ok"><span class="dot"></span>ligado</span>
+      {% else %}<span class="tag"><span class="dot"></span>pausado</span>{% endif %}
     </div>
     <div class="numeros">
       <span class="num" title="entregas no direct">{{ f.entregas }}</span>
@@ -51,12 +51,12 @@
   <div class="rodape">
     <span class="sub">{{ f.passos }} passo{{ 's' if f.passos != 1 }}</span>
     {% if f.ultimo %}<span class="sub">· última entrega {{ f.ultimo }}</span>{% endif %}
-    <a class="editar" href="/editor?f={{ f.id }}">abrir no editor</a>
+    <a class="editar link-seta" href="/editor?f={{ f.id }}">Abrir no editor <svg class="ico" style="width:14px;height:14px" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
   </div>
 </div>
 {% else %}
-<div class="card vazio">
-  <h1>Nenhum fluxo ainda</h1>
+<div class="vazio">
+  <p class="vazio-t">Nenhum fluxo ainda</p>
   <p class="sub">Comece por um simples: alguém comenta uma palavra, recebe seu link no direct.</p>
   <a class="btn" href="/editor?novo=1">Criar o primeiro fluxo</a>
 </div>
@@ -67,30 +67,21 @@
 {% endif %}
 
 <style>
-.cabeca { display: flex; align-items: flex-start; justify-content: space-between;
-          gap: 16px; margin-bottom: 16px; }
-.cabeca .btn { margin-top: 0; flex: none; }
-.fluxo { padding: 16px 20px; }
-.linha-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.titulo-fluxo { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.titulo-fluxo a { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
-.titulo-fluxo a:hover { color: var(--accent); text-decoration: none; }
-.titulo-fluxo .dot { align-self: center; }
+.fluxo { padding: 20px 24px; margin-bottom: 12px; }
+.linha-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.titulo-fluxo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-width: 0; }
+.titulo-fluxo a { font-size: 16px; font-weight: 600; color: var(--texto); text-decoration: none; }
+.titulo-fluxo a:hover { text-decoration: underline; text-decoration-color: var(--linha); }
 .numeros { text-align: right; flex: none; }
-.numeros .num { font-size: 17px; font-weight: 600; }
-.numeros .rot { font-size: 10px; color: var(--mut); font-weight: 600;
-                text-transform: uppercase; letter-spacing: .06em; display: block; }
-.gatilhos { margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
-.gatilho { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;
-           font-size: 13px; padding: 3px 0; }
-.quando { color: var(--mut); }
-.rodape { display: flex; align-items: baseline; gap: 8px; margin-top: 10px;
-          padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; }
-.rodape .editar { margin-left: auto; font-weight: 600; }
-.vazio { text-align: center; padding: 40px 20px; }
-.vazio .btn { margin-top: 14px; }
-@media (max-width: 560px) {
-  .cabeca { flex-direction: column; }
-}
+.numeros .num { font-size: 26px; font-weight: 500; letter-spacing: -.02em; line-height: 1.1; display: block; }
+.numeros .rot { font-size: 13px; color: var(--suave); font-weight: 500; display: block; }
+.gatilhos { margin: 16px 0 0; border-top: 1px solid var(--linha); padding-top: 12px; }
+.gatilho { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; padding: 4px 0; }
+.gatilho .pill { margin: 0; }
+.quando { color: var(--suave); margin-right: 4px; }
+.rodape { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+          padding-top: 12px; border-top: 1px solid var(--linha); }
+.rodape .editar { margin-left: auto; }
+@media (max-width: 560px) { .fluxo { padding: 16px; } .numeros .num { font-size: 22px; } }
 </style>
 {% endblock %}
