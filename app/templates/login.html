@@ -8,6 +8,7 @@
   <p class="sub" style="margin:0 0 24px;">Automação de respostas no direct.</p>
   {% if erro %}<div class="aviso grave"><span class="dot err"></span>{{ erro }}</div>{% endif %}
   <form method="post" action="/login">
+    {% if proximo %}<input type="hidden" name="proximo" value="{{ proximo }}">{% endif %}
     <label>Senha do painel
     <input type="password" name="senha" autofocus autocomplete="current-password"></label>
     <button type="submit" class="largo" style="margin-top:20px;">Entrar</button>

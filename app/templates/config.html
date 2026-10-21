@@ -152,6 +152,52 @@
 </form>
 {% endif %}
 
+<div class="card" id="mcp" style="margin-top:24px;">
+  <h2>Conectar ao Claude (MCP)</h2>
+  <p class="sub" style="margin-top:0;">Ligue o Claude (Claude.ai, Claude Desktop, Claude Code) ou qualquer cliente MCP direto nesta instância e opere por conversa: criar fluxo, ver resultado, preparar transmissão. Disparo pra pessoas reais sempre pede confirmação.</p>
+  {% if mcp_aviso == 'revogado' %}<div class="aviso ok"><span class="dot ok"></span>Acesso revogado. Quem usava esse acesso já não entra.</div>{% endif %}
+  {% if not mcp_https %}<div class="aviso"><span class="dot warn"></span>Sem <code>BASE_URL</code> https no .env. O Claude.ai só conecta em endereço https; o token manual funciona em acesso local.</div>{% endif %}
+
+  <label>Endereço do conector
+    <span class="mcp-copia"><input type="text" value="{{ mcp_url }}" readonly id="mcp-url"><button type="button" class="quieto pequeno" data-copia="mcp-url">Copiar</button></span></label>
+
+  {% if mcp_token_novo %}
+  <div class="aviso ok"><span class="dot ok"></span>Token gerado. <b>Copie agora: ele não aparece de novo.</b> Quem tiver este token opera a instância; guarde como senha.</div>
+  <label>Token de acesso
+    <span class="mcp-copia"><input type="text" value="{{ mcp_token_novo }}" readonly id="mcp-token"><button type="button" class="quieto pequeno" data-copia="mcp-token">Copiar</button></span></label>
+  {% endif %}
+
+  <div class="twrap" style="margin-top:16px;"><table>
+    <tr><th>Acesso</th><th>Último uso</th><th></th></tr>
+    <tr>
+      <td><span class="dot {{ 'ok' if mcp_manual else 'mut' }}"></span>Token manual{% if mcp_manual %} <span class="sub">termina em {{ mcp_manual.final }}</span>{% endif %}</td>
+      <td class="sub">{% if mcp_manual %}{{ (mcp_manual.ultimo_uso or '')|quando or 'nunca' }}{% else %}não gerado{% endif %}</td>
+      <td class="num">{% if mcp_manual %}<form method="post" action="/config/mcp/revogar" onsubmit="return confirm('Revogar o token manual? Quem usa ele perde o acesso na hora.')" style="margin:0;"><button class="perigo pequeno" style="margin:0;">Revogar</button></form>{% endif %}</td>
+    </tr>
+    {% for c in mcp_conexoes %}
+    <tr>
+      <td><span class="dot ok"></span>{{ c.nome }} <span class="sub">via login</span></td>
+      <td class="sub">{{ (c.ultimo_uso or '')|quando or 'nunca' }}</td>
+      <td class="num"><form method="post" action="/config/mcp/revogar" onsubmit="return confirm('Desconectar {{ c.nome }}?')" style="margin:0;"><input type="hidden" name="cliente_id" value="{{ c.cliente_id }}"><button class="perigo pequeno" style="margin:0;">Desconectar</button></form></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <form method="post" action="/config/mcp/token" {% if mcp_manual %}onsubmit="return confirm('Gerar um token novo? O atual para de funcionar.')"{% endif %}>
+    <button type="submit" class="{{ 'quieto' if mcp_manual else '' }}">{{ 'Gerar token novo' if mcp_manual else 'Gerar token' }}</button>
+  </form>
+
+  <details>
+    <summary>Como conectar</summary>
+    <ol>
+      <li><strong>Claude.ai (web e celular) e Claude Desktop:</strong> Configurações → Conectores → <strong>Adicionar conector personalizado</strong>. Nome <code>comenta EU QUERO</code>, URL <code>{{ mcp_url }}</code>. Não precisa de token: o Claude abre esta instância, você entra com a senha do painel e clica em <strong>Permitir</strong>.</li>
+      <li><strong>Claude Code:</strong> gere o token acima e rode<br><code>claude mcp add --transport http ceq {{ mcp_url }} --header "Authorization: Bearer SEU_TOKEN"</code></li>
+      <li><strong>Outros clientes MCP</strong> (Cursor, scripts): Streamable HTTP em <code>{{ mcp_url }}</code> com o cabeçalho <code>Authorization: Bearer SEU_TOKEN</code>.</li>
+      <li>Teste: peça ao Claude "como está minha conta no comenta EU QUERO?".</li>
+    </ol>
+    <p class="sub">Cada uso fica registrado nos eventos (qual ferramenta e se deu certo; nunca o conteúdo). Tutorial: <a href="https://comentaeuquero.com/tutoriais/conectar-claude" target="_blank" rel="noopener">comentaeuquero.com/tutoriais/conectar-claude</a>.</p>
+  </details>
+</div>
+
 <div class="card" style="margin-top:24px;">
   <h2>Backup</h2>
   <p class="sub" style="margin-top:0;">Cópia do banco inteiro (fluxos, leads, conta conectada), pra guardar ou levar pra outro servidor.</p>
@@ -185,5 +231,21 @@
 .form-teste button { margin-top: 12px; }
 @media (min-width: 768px) { .barra-salvar { margin: 0 -32px; padding: 12px 32px; } }
 .card table td { white-space: normal; }
+.mcp-copia { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.mcp-copia input { margin-top: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.mcp-copia button { margin-top: 0; }
+#mcp form button[type=submit] { margin-top: 16px; }
+#mcp details code { word-break: break-all; }
 </style>
+<script>
+document.querySelectorAll('[data-copia]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var campo = document.getElementById(b.dataset.copia);
+    campo.select();
+    var pronto = function () { b.textContent = 'Copiado'; setTimeout(function () { b.textContent = 'Copiar'; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(campo.value).then(pronto, function () { document.execCommand('copy'); pronto(); });
+    else { document.execCommand('copy'); pronto(); }
+  });
+});
+</script>
 {% endblock %}

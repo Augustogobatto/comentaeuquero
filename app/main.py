@@ -4,6 +4,7 @@ Endpoints públicos:  /webhook  /privacy  /health
 Painel (senha):      /login  /painel  /fluxos  /editor  /leads  /auth/start  /auth/callback
 """
 import asyncio
+import contextlib
 import hashlib
 import hmac
 import ipaddress
@@ -22,7 +23,7 @@ from fastapi.responses import (FileResponse, HTMLResponse, PlainTextResponse,
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import alerta, api, db, flowengine, instagram, runtime, segredos, whatsapp
+from . import alerta, api, db, flowengine, instagram, mcp_server, runtime, segredos, whatsapp
 from .senha import conferir_senha, definir_senha, senha_definida  # noqa: F401
 
 VERIFY_TOKEN = os.environ.get("WEBHOOK_VERIFY_TOKEN", "troque-este-token")
@@ -148,8 +149,20 @@ def check_license():
         # falha de rede não derruba status já conhecido
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-app = FastAPI(title="comenta EU QUERO")
+
+
+@contextlib.asynccontextmanager
+async def _ciclo(_app):
+    """Ciclo de vida: o startup de sempre e o transporte do MCP (o SDK precisa do
+    gerente de sessão rodando enquanto o app está no ar)."""
+    await startup()
+    async with mcp_server.rodando():
+        yield
+
+
+app = FastAPI(title="comenta EU QUERO", lifespan=_ciclo)
 app.include_router(api.router)
+app.include_router(mcp_server.router)
 
 # O editor é um app Vue já compilado (o build do Vite sai direto aqui). Não tem
 # node rodando em produção: são arquivos estáticos e pronto.
@@ -408,7 +421,6 @@ def instalar_filtro_log() -> None:
 
 # ---------- ciclo de vida ----------
 
-@app.on_event("startup")
 async def startup():
     instalar_filtro_log()
     db.init()
@@ -690,36 +702,40 @@ def index():
 
 
 @app.get("/login")
-def login_page(request: Request):
+def login_page(request: Request, proximo: str = ""):
     # avisa antes de a pessoa digitar, não depois de mandar a senha
     return templates.TemplateResponse(request, "login.html", {
-        "erro": AVISO_HTTP if conexao_insegura(request) else ""})
+        "erro": AVISO_HTTP if conexao_insegura(request) else "",
+        "proximo": mcp_server.proximo_seguro(proximo) if proximo else ""})
 
 
 @app.post("/login")
-def login_post(request: Request, senha: str = Form("")):
+def login_post(request: Request, senha: str = Form(""), proximo: str = Form("")):
     if conexao_insegura(request):
         db.log_event("login_por_http", payload={"ip": _ip_de(request),
                                                 "host": request.url.hostname})
-        return templates.TemplateResponse(request, "login.html", {"erro": AVISO_HTTP},
-                                          status_code=400)
+        return templates.TemplateResponse(request, "login.html", {"erro": AVISO_HTTP,
+                                          "proximo": proximo}, status_code=400)
     ip = _ip_de(request)
     espera = login_bloqueado(ip)
     if espera:
         minutos = max(1, round(espera / 60))
         return templates.TemplateResponse(request, "login.html", {
-            "erro": f"Tentativas demais. Tente de novo em {minutos} min."}, status_code=429)
+            "erro": f"Tentativas demais. Tente de novo em {minutos} min.",
+            "proximo": mcp_server.proximo_seguro(proximo) if proximo else ""}, status_code=429)
 
     if conferir_senha(senha):
         limpa_falhas(ip)
-        resp = RedirectResponse("/painel", status_code=303)
+        # `proximo` só pode ser a tela de "permitir acesso" do Claude (ver mcp_server)
+        resp = RedirectResponse(mcp_server.proximo_seguro(proximo), status_code=303)
         resp.set_cookie("ceq_session", db.criar_sessao(ip), httponly=True,
                         max_age=30 * 86400, samesite="lax", secure=COOKIE_SEGURO)
         return resp
 
     registra_falha(ip)
-    return templates.TemplateResponse(request, "login.html", {"erro": "Senha incorreta."},
-                                      status_code=401)
+    return templates.TemplateResponse(request, "login.html", {
+        "erro": "Senha incorreta.",
+        "proximo": mcp_server.proximo_seguro(proximo) if proximo else ""}, status_code=401)
 
 
 # ---------- primeiro acesso ----------
@@ -941,12 +957,17 @@ def _status_env():
 
 @app.get("/config")
 def config_page(request: Request):
+    return _config(request)
+
+
+def _config(request: Request, extra: dict | None = None):
     guard = require_login(request)
     if guard:
         return guard
     account = db.first_account()
     token, chat = alerta.credenciais()
     return templates.TemplateResponse(request, "config.html", {
+        **mcp_contexto(), **(extra or {}),
         "account": account,
         "teto": runtime.teto_atual(),
         "teto_maximo": runtime.TETO_MAXIMO,
@@ -976,6 +997,7 @@ def config_page(request: Request):
         "wa_teto_maximo": runtime.WA_TETO_MAXIMO,
         "wa_limite_diario": db.get_ajuste("wa_limite_diario"),
         "wa_aviso": request.query_params.get("wa"),
+        "mcp_aviso": request.query_params.get("mcp"),
     })
 
 
@@ -1070,6 +1092,55 @@ def config_save(request: Request, teto: str = Form(""), alerta_token: str = Form
     # o log diz O QUE mudou, nunca o valor: token não entra em log de evento
     db.log_event("config_alterada", payload={"campos": mudou})
     return RedirectResponse(destino, status_code=303)
+
+
+# ---------- conectar ao Claude (MCP) ----------
+
+def mcp_contexto() -> dict:
+    """Seção "Conectar ao Claude" de /config. Nunca leva token: do manual só os 4
+    últimos caracteres, das conexões OAuth o nome do cliente e o último uso."""
+    tokens = db.mcp_tokens_ativos()
+    manual = next((t for t in tokens if t["tipo"] == "manual"), None)
+    conexoes = {}
+    for t in tokens:
+        if t["tipo"] == "manual":
+            continue
+        c = conexoes.setdefault(t["cliente_id"], {"cliente_id": t["cliente_id"],
+                                                  "nome": t["cliente_nome"] or "Cliente MCP",
+                                                  "ultimo_uso": "", "desde": t["criado_em"]})
+        c["ultimo_uso"] = max(c["ultimo_uso"], t["ultimo_uso"] or "")
+        c["desde"] = min(c["desde"], t["criado_em"])
+    base = BASE_URL or "https://SEU-DOMINIO"
+    return {"mcp_url": base + "/mcp", "mcp_manual": manual,
+            "mcp_conexoes": sorted(conexoes.values(), key=lambda c: c["desde"]),
+            "mcp_https": BASE_URL.startswith("https://")}
+
+
+@app.post("/config/mcp/token")
+def config_mcp_token(request: Request):
+    """Gera (ou troca) o token manual. Ele aparece uma vez, nesta resposta, e só o
+    hash fica no banco; não vai pra URL nem pra redirecionamento."""
+    guard = require_login(request)
+    if guard:
+        return guard
+    db.mcp_apagar_tokens(["manual"])
+    novo = "ceq_" + secrets.token_urlsafe(32)
+    db.mcp_guardar_token(novo, "manual", cliente_nome="token manual")
+    db.log_event("mcp_token_gerado")
+    return _config(request, {"mcp_token_novo": novo})
+
+
+@app.post("/config/mcp/revogar")
+def config_mcp_revogar(request: Request, cliente_id: str = Form("")):
+    guard = require_login(request)
+    if guard:
+        return guard
+    if cliente_id:
+        db.mcp_apagar_do_cliente(cliente_id)
+    else:
+        db.mcp_apagar_tokens(["manual"])
+    db.log_event("mcp_acesso_revogado", payload={"conexao": "oauth" if cliente_id else "manual"})
+    return RedirectResponse("/config?mcp=revogado#mcp", status_code=303)
 
 
 @app.post("/config/teste-alerta")
@@ -1275,7 +1346,14 @@ def _muda_status(request, transmissao_id, de, para):
 
 @app.post("/transmissoes/{transmissao_id}/cancelar")
 def transmissao_cancelar(request: Request, transmissao_id: int):
-    return _muda_status(request, transmissao_id, ("agendada", "enviando", "pausada"), "cancelada")
+    return _muda_status(request, transmissao_id,
+                        ("rascunho", "agendada", "enviando", "pausada"), "cancelada")
+
+
+@app.post("/transmissoes/{transmissao_id}/disparar")
+def transmissao_disparar(request: Request, transmissao_id: int):
+    """Rascunho (criado pelo Claude) vira agendada: o worker de sempre envia."""
+    return _muda_status(request, transmissao_id, ("rascunho",), "agendada")
 
 
 @app.post("/transmissoes/{transmissao_id}/pausar")
@@ -1411,3 +1489,10 @@ async def importar_post(request: Request):
     resultado["total_invalidos"] = len(resultado["invalidos"])
     resultado["invalidos"] = resultado["invalidos"][:50]
     return pagina(resultado=resultado)
+
+
+# ---------- MCP: por último ----------
+# Montado em "/" depois de todas as rotas: atende /mcp, /.well-known/oauth-* e as
+# rotas OAuth do SDK (/authorize, /token, /register, /revoke). Qualquer outra coisa
+# que não casou com o painel continua 404.
+app.mount("/", mcp_server.PORTA)

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set sem_menu = true %}
+{% block title %}Conectar ao Claude — comenta EU QUERO{% endblock %}
+{% block solta %}
+<div class="caixa-login">
+  <span class="nav-marca"><span class="marca-q" aria-hidden="true"><i></i><i></i><i></i><i></i></span>comenta EU QUERO</span>
+  <h1>Permitir acesso?</h1>
+  {% if erro %}
+  <div class="aviso grave"><span class="dot err"></span>{{ erro }}</div>
+  {% else %}
+  <p class="sub" style="margin:0 0 16px;"><b style="color:var(--texto);">{{ cliente }}</b> quer usar esta instância por você.
+    O acesso volta para <code>{{ destino }}</code>.</p>
+  <ul class="lista-linhas" style="margin-bottom:16px;">
+    <li><span class="principal">Ler fluxos, leads, resultados e transmissões</span></li>
+    <li><span class="principal">Criar e editar fluxos, gatilhos, etiquetas, templates e rascunhos de transmissão</span></li>
+    <li><span class="principal">Disparar transmissão, sempre com prévia e código de confirmação</span></li>
+  </ul>
+  <p class="sub">Nunca vê tokens nem senhas e não muda as credenciais da Meta. Você revoga quando quiser em Configurações → Conectar ao Claude.</p>
+  <form method="post" action="/mcp/autorizar" class="acoes">
+    <input type="hidden" name="pedido" value="{{ pedido }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" name="decisao" value="permitir">Permitir</button>
+    <button type="submit" name="decisao" value="recusar" class="quieto">Recusar</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

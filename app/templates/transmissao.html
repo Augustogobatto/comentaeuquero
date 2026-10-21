@@ -128,8 +128,9 @@ desenhaVars()
   {% if r.erros %}<p class="sub">Erros da Meta: {% for c, n in r.erros.items() %}<code>{{ c }}</code> × {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 </div>
 
-{% if t.status in ('agendada', 'enviando', 'pausada') %}
+{% if t.status in ('rascunho', 'agendada', 'enviando', 'pausada') %}
 <div class="acoes">
+  {% if t.status == 'rascunho' %}<form method="post" action="/transmissoes/{{ t.id }}/disparar" onsubmit="return confirm('Disparar para {{ previsto }} pessoa(s)? As mensagens começam a sair{{ ' no horário agendado' if t.agendada_para else ' agora' }}.')"><button>Disparar</button></form>{% endif %}
   {% if t.status == 'enviando' %}<form method="post" action="/transmissoes/{{ t.id }}/pausar"><button class="quieto">Pausar</button></form>{% endif %}
   {% if t.status == 'pausada' %}<form method="post" action="/transmissoes/{{ t.id }}/retomar"><button>Retomar</button></form>{% endif %}
   <form method="post" action="/transmissoes/{{ t.id }}/cancelar" onsubmit="return confirm('Cancelar esta transmissão? Quem ainda não recebeu não vai receber.')"><button class="perigo">Cancelar transmissão</button></form>
