@@ -8,6 +8,7 @@ import CeqNode from './CeqNode.vue'
 import Funil from './Funil.vue'
 import Icone from './Icone.vue'
 import NodePanel from './NodePanel.vue'
+import { posicionar } from './layout.js'
 import { NOMES_GATILHO, gatilhosDisponiveis, paleta } from './tipos'
 
 const { onConnect, addEdges, project, vueFlowRef, fitView, onNodesInitialized,
@@ -93,7 +94,9 @@ async function abrir(id) {
   carregando.value = true
   fluxoAtual.value = f
   const entrada = entradaSalva(f)
-  nodes.value = [noDoGatilho(f, entrada), ...(f.graph.nodes || []).map((n) => ({ ...n }))]
+  // fluxo montado por script pode vir sem position: sem isso o canvas quebrava
+  f.graph.nodes = posicionar(f.graph.nodes || [], f.graph.edges || [], entrada)
+  nodes.value = [noDoGatilho(f, entrada), ...f.graph.nodes.map((n) => ({ ...n }))]
   edges.value = (f.graph.edges || []).map((e, i) => ({ id: e.id || `e${i}`, ...e, type: 'ceq' }))
   if (entrada) {
     edges.value.push({ id: 'e-gatilho', source: ID_GATILHO, target: entrada, type: 'ceq' })

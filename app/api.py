@@ -219,6 +219,50 @@ def _avisos_de_janela(nodes, edges):
     return avisos
 
 
+# ---------- posições ----------
+
+def _tem_posicao(n) -> bool:
+    pos = n.get("position")
+    return (isinstance(pos, dict) and all(isinstance(pos.get(k), (int, float))
+                                          and not isinstance(pos.get(k), bool) for k in ("x", "y")))
+
+
+def posicionar(graph: dict, entry_node: str = "") -> dict:
+    """Dá posição a nó que chegou sem (fluxo montado por script ou importado à mão).
+
+    Sem `position` o canvas do editor quebrava ao abrir (lia position.x de undefined)
+    e ficava mostrando o fluxo anterior. Layout simples, da esquerda pra direita:
+    coluna = distância a partir da entrada seguindo as arestas, linha = ordem dentro
+    da coluna. Nó que já tem posição fica onde está. Devolve o próprio grafo."""
+    nodes = graph.get("nodes") or []
+    faltando = [n for n in nodes if not _tem_posicao(n)]
+    if not faltando:
+        return graph
+    ids = [n.get("id") for n in nodes]
+    saidas = {}
+    for e in graph.get("edges") or []:
+        saidas.setdefault(e.get("source"), []).append(e.get("target"))
+    alvos = {e.get("target") for e in graph.get("edges") or []}
+    raizes = ([entry_node] if entry_node in ids else []) + [i for i in ids if i not in alvos]
+    coluna = {}
+    fila = [(r, 0) for r in raizes if r is not None]
+    while fila:
+        nid, c = fila.pop(0)
+        if nid in coluna or nid not in ids:
+            continue
+        coluna[nid] = c
+        fila += [(alvo, c + 1) for alvo in saidas.get(nid, [])]
+    proxima = max(coluna.values(), default=-1) + 1
+    linhas = {}
+    for n in nodes:
+        c = coluna.setdefault(n.get("id"), proxima)   # solto, sem ligação: vai pro fim
+        linha = linhas.get(c, 0)
+        linhas[c] = linha + 1
+        if not _tem_posicao(n):
+            n["position"] = {"x": 380 + c * 300, "y": 160 + linha * 180}
+    return graph
+
+
 # ---------- modelos ----------
 
 class FlowIn(BaseModel):
@@ -283,6 +327,7 @@ def ver_flow(flow_id: int):
         raise HTTPException(404, "fluxo não encontrado")
     flow["triggers"] = db.list_triggers(flow_id)
     flow["avisos"] = validar_grafo(flow["graph"])
+    posicionar(flow["graph"], flow.get("entry_node") or "")
     return flow
 
 
@@ -356,6 +401,7 @@ def importar(body: dict):
     if not isinstance(body.get("graph"), dict):
         raise HTTPException(400, "JSON sem 'graph'")
     avisos = validar_grafo(body["graph"])
+    posicionar(body["graph"], body.get("entry_node") or "")
     fid = db.create_flow(conta["id"], name=body.get("name") or "Importado",
                          graph=body["graph"], entry_node=body.get("entry_node") or "",
                          active=0)   # entra desligado: quem importa revisa antes de ligar
