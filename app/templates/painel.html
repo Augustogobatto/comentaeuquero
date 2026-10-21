@@ -161,7 +161,9 @@ O valor está no painel da Meta, em <em>Configuração da API com login do Insta
 @media (min-width: 1024px) { .duas { grid-template-columns: 1.4fr 1fr; align-items: start; } }
 .duas section { min-width: 0; }
 .atividade .principal { display: flex; flex-direction: column; gap: 2px; }
-.atividade .quem { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atividade .quem { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.atividade .quem b { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.atividade .quem .pill { display: inline-block; line-height: 22px; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
 .por-dia td.barra { width: 100%; padding-left: 0; padding-right: 0; }
 .por-dia td.barra span { display: block; height: 6px; border-radius: 999px; background: var(--texto); opacity: .8; min-width: 2px; }
 .por-dia tr:first-child td.barra span { background: var(--acento); opacity: 1; }
