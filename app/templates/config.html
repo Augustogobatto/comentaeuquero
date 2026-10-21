@@ -97,7 +97,7 @@
   {% if wa_aviso == 'sem_conta' %}<div class="aviso grave"><span class="dot err"></span>Conecte a conta do Instagram primeiro: o número de WhatsApp fica ligado a ela.</div>{% endif %}
   {% if wa.configurado %}
   <p class="sub" style="margin-top:0;"><span class="tag ok"><span class="dot"></span>ligado</span> <b style="color:var(--texto);">{{ wa.nome or 'Número ligado' }}</b>{% if wa.numero %} · {{ wa.numero }}{% endif %}
-    {% if wa.qualidade %} · qualidade {{ wa.qualidade|lower }}{% endif %}
+    {% if wa.qualidade %} · qualidade {{ {'GREEN': 'alta', 'YELLOW': 'média', 'RED': 'baixa'}.get(wa.qualidade, wa.qualidade|lower) }}{% endif %}
     · limite {% if wa.limite is none %}ilimitado{% else %}{{ wa.limite }}/24h{% endif %}
     {% if wa.atualizado_em %} · atualizado {{ wa.atualizado_em|quando }}{% endif %}</p>
   {% else %}
