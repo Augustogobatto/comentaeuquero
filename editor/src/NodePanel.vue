@@ -420,7 +420,7 @@ async function addVariacao() {
 .caixa { display: flex; flex-direction: row; align-items: center; gap: 8px; }
 .caixa input { width: auto; }
 .painel {
-  width: 336px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
+  width: 336px; flex: none; background: var(--fundo); border-left: 1px solid var(--line);
   display: flex; flex-direction: column; height: 100%;
   animation: entra .16s ease;
 }
@@ -431,22 +431,22 @@ header {
 }
 .chip {
   display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
-  border-radius: 999px; font-size: 10.5px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .06em;
+  border-radius: 999px; font-size: 12px; font-weight: 500;
 }
-.x { background: none; color: var(--mut); font-size: 15px; padding: 2px 6px; }
+.x { background: none; color: var(--mut); font-size: 15px; height: 30px; width: 30px; padding: 0; }
+.x:hover { background: var(--texto-4); color: var(--texto); opacity: 1; }
 .corpo { padding: 16px; overflow-y: auto; flex: 1; }
 
-label { display: block; font-size: 12px; font-weight: 600; margin-top: 16px; }
+label { display: block; font-size: 13px; font-weight: 500; margin-top: 16px; }
 label:first-child, .corpo > h2:first-child { margin-top: 0; }
 h2 { margin: 18px 0 8px; }
 input, textarea, select {
-  width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
-  font: inherit; font-size: 13px; margin-top: 5px; background: var(--panel); color: var(--ink);
+  width: 100%; min-height: 36px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 6px;
+  font: inherit; font-size: 14px; margin-top: 6px; background: var(--fundo); color: var(--ink);
 }
 textarea { resize: vertical; line-height: 1.5; }
 input:focus, textarea:focus, select:focus {
-  outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent;
+  outline: none; border-color: var(--acento); box-shadow: 0 0 0 3px var(--acento-25);
 }
 .linha { display: flex; gap: 8px; align-items: center; }
 .curto { width: 90px; }
@@ -458,20 +458,20 @@ input:focus, textarea:focus, select:focus {
 .conta.estourou { color: var(--err); font-family: inherit; }
 .dica { font-size: 12px; color: var(--mut); margin: 6px 0 0; line-height: 1.5; }
 code {
-  font-family: var(--mono); font-size: .88em; background: var(--bg);
+  font-family: var(--mono); font-size: .88em; background: var(--texto-4);
   padding: 1px 5px; border-radius: 4px;
 }
 .item {
-  border: 1px solid var(--line); border-radius: 9px; padding: 10px;
-  margin-bottom: 8px; display: grid; gap: 6px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+  margin-bottom: 8px; display: grid; gap: 6px; background: var(--painel);
 }
-.item input, .item select { margin-top: 0; background: var(--panel); }
+.item input, .item select { margin-top: 0; background: var(--fundo); }
 .item .perigo { justify-self: end; }
 .add {
-  width: 100%; background: var(--panel); border: 1px dashed #cfcfd8; color: var(--mut);
-  font-weight: 500; font-size: 12.5px; padding: 8px; border-radius: 8px;
+  width: 100%; background: none; border: 1px dashed var(--linha); color: var(--mut);
+  font-weight: 500; font-size: 13px; height: 34px; padding: 0 8px; border-radius: 6px;
 }
-.add:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+.add:hover { border-color: var(--suave); color: var(--texto); opacity: 1; }
 .add:disabled { opacity: .45; }
 details summary {
   font-size: 12.5px; color: var(--mut); cursor: pointer; margin: 18px 0 8px;

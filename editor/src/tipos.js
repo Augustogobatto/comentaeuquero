@@ -6,12 +6,14 @@
 // cores soltas viram confete; quatro famílias deixam a leitura do fluxo imediata:
 // o que fala com a pessoa, o que espera, o que decide e o que trabalha por trás.
 
+// Cor só pra estado (padrão do Blocos): as famílias se distinguem pelo rótulo e
+// pelo ícone, em tons neutros. O começo leva o acento porque é "onde o fluxo entra".
 export const FAMILIAS = {
-  entrada: { rotulo: 'Começo', cor: '#0f766e', suave: '#ccfbf1' },
-  envio: { rotulo: 'Conversa', cor: '#5b3df5', suave: '#f1eefe' },
-  tempo: { rotulo: 'Tempo', cor: '#b45309', suave: '#fef3c7' },
-  logica: { rotulo: 'Caminhos', cor: '#047857', suave: '#d1fae5' },
-  bastidor: { rotulo: 'Bastidores', cor: '#52525b', suave: '#f4f4f5' },
+  entrada: { rotulo: 'Começo', cor: 'var(--acento)', suave: 'var(--acento-10)' },
+  envio: { rotulo: 'Conversa', cor: 'var(--texto)', suave: 'var(--texto-6)' },
+  tempo: { rotulo: 'Tempo', cor: 'var(--texto)', suave: 'var(--texto-6)' },
+  logica: { rotulo: 'Caminhos', cor: 'var(--texto)', suave: 'var(--texto-6)' },
+  bastidor: { rotulo: 'Bastidores', cor: 'var(--texto)', suave: 'var(--texto-6)' },
 }
 
 // Nomes dos gatilhos, iguais aos do painel e da janela de gatilhos.
@@ -147,11 +149,11 @@ export const TIPOS = {
 }
 
 export function corDe(tipo) {
-  return FAMILIAS[TIPOS[tipo]?.familia]?.cor || '#6f6f78'
+  return FAMILIAS[TIPOS[tipo]?.familia]?.cor || 'var(--suave)'
 }
 
 export function suaveDe(tipo) {
-  return FAMILIAS[TIPOS[tipo]?.familia]?.suave || '#f4f4f5'
+  return FAMILIAS[TIPOS[tipo]?.familia]?.suave || 'var(--texto-6)'
 }
 
 export function descreveTempo(segundos) {

@@ -73,40 +73,39 @@ function pct(parte, todo) {
 
 .topo-m { display: flex; align-items: flex-end; justify-content: space-between;
           gap: 20px; margin-bottom: 26px; }
-.seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line);
-       border-radius: 9px; padding: 3px; gap: 2px; }
-.seg button { font-size: 12.5px; font-weight: 500; color: var(--mut); background: none;
-              border: none; cursor: pointer; padding: 5px 13px; border-radius: 6px; margin: 0; }
+.seg { display: inline-flex; background: var(--texto-4); border: 1px solid var(--line);
+       border-radius: 6px; padding: 2px; gap: 2px; }
+.seg button { height: 28px; font-size: 13px; font-weight: 500; color: var(--mut); background: none;
+              border: none; cursor: pointer; padding: 0 12px; border-radius: 4px; margin: 0; }
 .seg button:hover { color: var(--ink); }
-.seg button.on { background: var(--panel); color: var(--ink);
-                 box-shadow: 0 1px 2px rgba(17,17,19,.08); }
+.seg button.on { background: var(--fundo); color: var(--ink);
+                 box-shadow: 0 1px 2px rgba(10,10,10,.08); }
 
 .hero { text-align: right; line-height: 1; }
-.hero-num { font-family: var(--mono); font-size: 2rem; font-weight: 600;
+.hero-num { font-size: 2rem; font-weight: 500;
             letter-spacing: -.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
 .hero-num i { font-size: 1rem; font-style: normal; color: var(--mut); margin-left: 1px; }
-.hero-rot { display: block; font-size: 11px; color: var(--mut); margin-top: 5px;
-            text-transform: uppercase; letter-spacing: .05em; }
+.hero-rot { display: block; font-size: 13px; font-weight: 500; color: var(--mut); margin-top: 6px; }
 
 .funil { display: grid; gap: 9px; }
 .etapa { display: grid; grid-template-columns: 84px 1fr auto auto; align-items: center; gap: 12px; }
-.et-nome { font-size: 12px; color: var(--mut); font-weight: 500; }
-.trilho { height: 30px; background: var(--bg); border-radius: 7px; overflow: hidden; }
-.preenche { height: 100%; border-radius: 7px; min-width: 2px; transform-origin: left;
+.et-nome { font-size: 13px; color: var(--mut); font-weight: 500; }
+.trilho { height: 30px; background: var(--texto-4); border-radius: 6px; overflow: hidden; }
+.preenche { height: 100%; border-radius: 6px; min-width: 2px; transform-origin: left;
             animation: cresce .5s cubic-bezier(.2,.7,.3,1) backwards; }
 @keyframes cresce { from { transform: scaleX(0); } }
-.preenche.s0 { background: #111113; }
-.preenche.s1 { background: #3d3d45; }
-.preenche.s2 { background: #6f6f78; animation-delay: .06s; }
-.preenche.s3 { background: #a1a1ab; animation-delay: .12s; }
-.et-num { font-family: var(--mono); font-size: 14px; font-weight: 600;
+.preenche.s0 { background: var(--texto); }
+.preenche.s1 { background: color-mix(in srgb, var(--texto) 75%, transparent); }
+.preenche.s2 { background: color-mix(in srgb, var(--texto) 50%, transparent); animation-delay: .06s; }
+.preenche.s3 { background: color-mix(in srgb, var(--texto) 30%, transparent); animation-delay: .12s; }
+.et-num { font-size: 14px; font-weight: 500;
           font-variant-numeric: tabular-nums; color: var(--ink); min-width: 30px; text-align: right; }
-.et-taxa { font-family: var(--mono); font-size: 11.5px; color: var(--mut);
+.et-taxa { font-size: 12px; color: var(--mut);
            font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
 .et-taxa i { font-style: normal; text-transform: uppercase; letter-spacing: .05em;
              font-family: var(--sans); font-size: 10px; }
 
 .pe { font-size: 11.5px; color: var(--mut); line-height: 1.6; margin: 22px 0 0;
       padding-top: 16px; border-top: 1px solid var(--line); }
-.pe .cinza { color: var(--line-forte, #9a9aa4); }
+.pe .cinza { color: var(--suave); opacity: .7; }
 </style>

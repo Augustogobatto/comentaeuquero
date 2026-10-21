@@ -67,16 +67,16 @@ const vazio = computed(() => !meta.value.resumo?.(props.data || {}))
 
 <style scoped>
 .ficha {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  background: var(--fundo); border: 1px solid var(--line); border-radius: 8px;
   min-width: 200px; max-width: 244px; position: relative;
-  box-shadow: 0 1px 2px rgba(17, 17, 19, .04), 0 4px 12px -6px rgba(17, 17, 19, .1);
+  box-shadow: 0 1px 2px rgba(10, 10, 10, .04);
   transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
 }
-.ficha:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(17, 17, 19, .06), 0 10px 20px -8px rgba(17, 17, 19, .16); }
-.ficha.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ficha:hover { border-color: color-mix(in srgb, var(--texto) 25%, var(--linha)); box-shadow: 0 4px 16px rgba(10, 10, 10, .08); }
+.ficha.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--acento-25); }
 /* o começo do fluxo se distingue pelo filete, não por um canto redondo gigante:
    com quatro ou cinco gatilhos o raio de 999px passava por cima do texto */
-.ficha.entrada { border-left: 3px solid #0f766e; min-width: 232px; max-width: 288px; }
+.ficha.entrada { min-width: 232px; max-width: 288px; }
 
 .gatilhos { padding: 8px 12px 11px; display: grid; gap: 6px; }
 .gat {
@@ -86,8 +86,8 @@ const vazio = computed(() => !meta.value.resumo?.(props.data || {}))
 .gat + .gat { border-top: 1px solid var(--line); padding-top: 6px; }
 .gat-nome { color: var(--ink); }
 .gat-kw {
-  background: #ccfbf1; color: #0f766e; border-radius: 5px;
-  padding: 1px 6px; font-size: 11px; font-weight: 600;
+  background: var(--texto-6); color: var(--texto); border-radius: 999px;
+  padding: 1px 7px; font-size: 11px; font-weight: 500;
 }
 .gat-kw.solto { background: none; color: var(--mut); font-weight: 400; font-style: italic; }
 .gat.off { opacity: .45; }
@@ -99,8 +99,7 @@ const vazio = computed(() => !meta.value.resumo?.(props.data || {}))
 .chip {
   display: inline-flex; align-items: center; gap: 5px; margin: 10px 12px 0;
   padding: 3px 8px 3px 6px; border-radius: 999px;
-  font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .06em;
+  font-size: 11px; font-weight: 500;
 }
 .corpo {
   padding: 7px 12px 11px; font-size: 12.5px; line-height: 1.45; color: var(--ink);
@@ -110,9 +109,9 @@ const vazio = computed(() => !meta.value.resumo?.(props.data || {}))
 
 .botoes { padding: 0 12px 11px; display: grid; gap: 5px; }
 .botao {
-  border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px;
-  font-size: 11.5px; text-align: center; color: var(--accent);
-  background: var(--panel); white-space: nowrap; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px;
+  font-size: 12px; font-weight: 500; text-align: center; color: var(--texto);
+  background: var(--fundo); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis;
 }
 
@@ -121,14 +120,14 @@ const vazio = computed(() => !meta.value.resumo?.(props.data || {}))
   position: relative; display: flex; justify-content: flex-end; align-items: center;
   padding: 6px 14px 6px 12px; border-bottom: 1px solid var(--line);
 }
-.saida:last-child { border-bottom: none; border-radius: 0 0 10px 10px; }
+.saida:last-child { border-bottom: none; border-radius: 0 0 8px 8px; }
 .saida-rot {
   font-size: 11px; color: var(--mut);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .pino {
-  width: 9px; height: 9px; background: #fff; border: 1.5px solid var(--mut);
+  width: 9px; height: 9px; background: var(--fundo); border: 1.5px solid var(--mut);
   transition: border-color .12s ease, transform .12s ease;
 }
 .pino:hover { border-color: var(--accent); transform: scale(1.25); }

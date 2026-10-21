@@ -53,11 +53,11 @@ const curva = computed(() => getBezierPath({
   position: absolute; pointer-events: all; z-index: 1002;
   width: 20px; height: 20px; padding: 0; border-radius: 50%;
   display: grid; place-items: center; cursor: pointer;
-  background: #fff; color: #9a9aa6;
-  border: 1px solid var(--line, #e4e4e9);
+  background: var(--fundo, #fff); color: var(--suave, #6b6b6b);
+  border: 1px solid var(--line, #e6e6e6);
   box-shadow: 0 1px 3px rgba(17, 17, 19, .14);
   animation: pisca-ligacao .12s ease;
 }
-.tira-ligacao:hover { color: #fff; background: var(--err, #dc2626); border-color: var(--err, #dc2626); }
+.tira-ligacao:hover { color: #fff; background: var(--err, #b91c1c); border-color: var(--err, #b91c1c); }
 @keyframes pisca-ligacao { from { opacity: 0; transform: scale(.7); } }
 </style>

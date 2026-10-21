@@ -416,7 +416,7 @@ onMounted(async () => {
 <template>
   <!-- barra do produto: a mesma do painel, pra ficar claro que é a mesma casa -->
   <header class="topo">
-    <a class="marca" href="/painel">comenta <b>EU QUERO</b></a>
+    <a class="marca" href="/painel"><span class="marca-q" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="marca-txt">comenta EU QUERO</span></a>
     <nav>
       <a href="/painel">Painel</a>
       <a href="/fluxos" class="aqui">Fluxos</a>
@@ -524,7 +524,7 @@ onMounted(async () => {
         <template v-for="t in [...Object.keys(PADROES), 'gatilho']" :key="t" #[`node-${t}`]="p">
           <CeqNode v-bind="p" />
         </template>
-        <Background :gap="15" :size="1.4" pattern-color="#cdcdd8" />
+        <Background :gap="15" :size="1.4" pattern-color="var(--linha)" />
         <Controls :show-interactive="false" />
       </VueFlow>
 
@@ -631,97 +631,128 @@ onMounted(async () => {
 @import '@vue-flow/core/dist/theme-default.css';
 @import '@vue-flow/controls/dist/style.css';
 
-/* mesmas variáveis do painel: é o mesmo produto, não um primo distante */
+/* Tokens: espelho de blocos/app/globals.css — manter em sincronia
+   (os mesmos de app/static/ceq.css; editor e painel são o mesmo produto). */
 :root {
-  --bg: #f7f7f8;
-  --panel: #ffffff;
-  --ink: #111113;
-  --mut: #6f6f78;
-  --line: #e5e5ea;
-  --accent: #5b3df5;
-  --accent-soft: #f1eefe;
-  --ok: #16a34a;
-  --err: #dc2626;
-  --sans: "Inter", system-ui, -apple-system, sans-serif;
+  --fundo: #ffffff;
+  --texto: #0a0a0a;
+  --suave: #6b6b6b;
+  --linha: #e6e6e6;
+  --acento: #F0561D;
+  --painel: #fafafa;
+  --erro: #b91c1c;
+  --reserva: #2563eb;
+  --aviso: #b45309;
+  --ok: #1F7A4D;
+  color-scheme: light;
+}
+.dark {
+  --fundo: #0a0a0a;
+  --texto: #f2f2f2;
+  --suave: #9a9a9a;
+  --linha: #262626;
+  --acento: #F0561D;
+  --painel: #141414;
+  --erro: #f87171;
+  --reserva: #60a5fa;
+  --aviso: #fbbf24;
+  --ok: #4CC28A;
+  color-scheme: dark;
+}
+:root {
+  --texto-4: color-mix(in srgb, var(--texto) 4%, transparent);
+  --texto-6: color-mix(in srgb, var(--texto) 6%, transparent);
+  --acento-10: color-mix(in srgb, var(--acento) 10%, transparent);
+  --acento-25: color-mix(in srgb, var(--acento) 25%, transparent);
+  /* nomes antigos do editor apontando pros tokens do Blocos */
+  --bg: var(--texto-4);
+  --panel: var(--fundo);
+  --ink: var(--texto);
+  --mut: var(--suave);
+  --line: var(--linha);
+  --accent: var(--acento);
+  --accent-soft: var(--acento-10);
+  --err: var(--erro);
+  --sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 }
 * { box-sizing: border-box; }
 body {
-  font-family: var(--sans); background: var(--bg); color: var(--ink); margin: 0;
+  font-family: var(--sans); background: var(--fundo); color: var(--ink); margin: 0;
   font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased;
 }
-h1 { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
-h2 {
-  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .07em; color: var(--mut); margin: 0;
-}
+h1 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+h2 { font-size: 13px; font-weight: 500; color: var(--suave); margin: 0; }
 .sub { color: var(--mut); font-weight: 400; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .dot {
   display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none;
 }
 .dot.ok { background: var(--ok); }
-.dot.mut { background: #c8c8d0; }
+.dot.mut { background: var(--suave); opacity: .5; }
 .obs { font-size: 12px; color: var(--mut); }
 .nada { color: var(--mut); font-size: 13px; font-style: italic; }
 .pill {
-  display: inline-block; background: var(--accent-soft); color: var(--accent);
-  border-radius: 6px; padding: 1px 7px; font-size: 11.5px;
-  font-weight: 600; margin: 0 4px 2px 0;
+  display: inline-flex; align-items: center; height: 20px; background: var(--texto-6); color: var(--texto);
+  border-radius: 999px; padding: 0 8px; font-size: 12px;
+  font-weight: 500; margin: 0 4px 2px 0;
 }
 
-/* topo do produto */
+/* topo do produto: mesma marca e mesmos itens do painel */
 .topo {
-  background: var(--panel); border-bottom: 1px solid var(--line); padding: 0 20px;
+  background: var(--painel); border-bottom: 1px solid var(--line); padding: 0 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  height: 52px;
+  height: 56px;
 }
 .marca {
-  font-weight: 500; font-size: 14px; letter-spacing: -.01em; color: var(--mut);
-  text-decoration: none; white-space: nowrap;
+  display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px;
+  letter-spacing: -.01em; color: var(--texto); text-decoration: none; white-space: nowrap;
 }
-.marca b { color: var(--ink); font-weight: 800; }
+.marca-q { display: inline-grid; width: 22px; height: 22px; grid-template-columns: 1fr 1fr; gap: 2px; flex: none; }
+.marca-q i { background: var(--texto); border-radius: 2px; }
+.marca-q i:last-child { background: var(--acento); }
 .topo nav { display: flex; gap: 2px; }
 .topo nav a {
-  color: var(--mut); text-decoration: none; font-size: 13px; font-weight: 500;
-  padding: 6px 10px; border-radius: 6px;
+  display: flex; align-items: center; height: 32px; color: var(--suave); text-decoration: none;
+  font-size: 14px; padding: 0 12px; border-radius: 6px; transition: background .15s, color .15s;
 }
-.topo nav a:hover { color: var(--ink); background: var(--bg); }
-.topo nav a.aqui { color: var(--ink); background: var(--bg); }
+.topo nav a:hover { color: var(--ink); background: var(--texto-4); }
+.topo nav a.aqui { color: var(--ink); background: var(--texto-6); font-weight: 500; }
 
-.tela { display: flex; height: calc(100vh - 52px); }
+.tela { display: flex; height: calc(100vh - 56px); }
 
 /* botões, no dialeto do painel */
 button, .btn {
-  border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-size: 13px;
-  font-weight: 600; cursor: pointer; background: var(--ink); color: #fff;
+  border: 1px solid transparent; border-radius: 6px; height: 34px; padding: 0 14px; font: inherit; font-size: 14px;
+  font-weight: 500; cursor: pointer; background: var(--ink); color: var(--fundo);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity .15s, background .15s;
 }
-button:hover { opacity: .88; }
+button:hover { opacity: .9; }
 /* pointer-events: sem isso o :hover pinta botão desabilitado como se estivesse
    armado — no "apagar fluxo" isso acendia o vermelho com o botão morto */
 button:disabled { opacity: .45; cursor: default; pointer-events: none; }
 .quieto {
   background: var(--panel); color: var(--ink); border: 1px solid var(--line);
 }
-.quieto:hover { background: var(--bg); opacity: 1; }
-.mini { padding: 4px 9px; font-size: 11.5px; font-weight: 500; }
-.perigo { background: none; color: var(--err); font-weight: 500; padding: 2px 4px; font-size: 12px; }
-.salvar { background: var(--ink); color: #fff; }
+.quieto:hover { background: var(--texto-4); opacity: 1; }
+.mini { height: 28px; padding: 0 10px; font-size: 13px; font-weight: 500; }
+.perigo { background: none; color: var(--err); font-weight: 500; height: auto; padding: 2px 4px; font-size: 13px; }
+.salvar { background: var(--ink); color: var(--fundo); }
 button:focus-visible, a:focus-visible, input:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
 /* lateral */
 .lateral {
-  width: 216px; background: var(--panel); border-right: 1px solid var(--line);
+  width: 232px; background: var(--painel); border-right: 1px solid var(--line);
   overflow-y: auto; flex: none;
 }
 .bloco { padding: 16px; border-bottom: 1px solid var(--line); }
 .bloco-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .voltar {
-  display: inline-flex; align-items: center; gap: 5px; color: var(--mut);
-  text-decoration: none; font-size: 10.5px;
-  text-transform: uppercase; letter-spacing: .07em; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px; color: var(--mut);
+  text-decoration: none; font-size: 13px; font-weight: 500;
 }
 .voltar:hover { color: var(--ink); text-decoration: none; }
 .bloco h2 { margin-bottom: 10px; }
@@ -735,12 +766,12 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   max-height: 32vh; overflow-y: auto;
 }
 .lista li {
-  display: flex; align-items: center; gap: 8px; padding: 7px 8px; margin: 0 -8px;
-  border-radius: 7px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; margin: 0 -8px;
+  border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--suave);
 }
-.lista li:hover { background: var(--bg); }
-.lista li.ativo { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.lista li.ativo .num { color: var(--accent); }
+.lista li:hover { color: var(--texto); }
+.lista li:hover { background: var(--texto-4); }
+.lista li.ativo { background: var(--texto-6); color: var(--texto); font-weight: 500; }
 .nome { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lista .num { font-size: 11px; color: var(--mut); }
 .lista li.nada { cursor: default; }
@@ -748,24 +779,34 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .io { display: flex; gap: 6px; margin-top: 12px; }
 .io > * { flex: 1; text-align: center; }
 .apagar-fluxo { display: block; width: 100%; margin-top: 12px; color: var(--err); }
-.apagar-fluxo:hover { background: #fef2f2; border-color: #fecaca; opacity: 1; }
-.arquivo { cursor: pointer; display: block; }
+.apagar-fluxo:hover { background: color-mix(in srgb, var(--erro) 8%, transparent);
+  border-color: color-mix(in srgb, var(--erro) 35%, transparent); opacity: 1; }
+.arquivo { cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; font-size: 13px; }
+/* os pontos do fundo: o pattern-color não aceita var(), então a cor vem por aqui */
+.vue-flow__background circle, .vue-flow__background pattern * { fill: color-mix(in srgb, var(--texto) 16%, transparent); }
+.tela { overflow: hidden; }
+@media (max-width: 640px) {
+  .marca-txt { display: none; }
+  .topo nav { overflow-x: auto; }
+  .topo nav a { padding: 0 10px; }
+  .lateral { width: 196px; }
+}
 
 .familia { margin-bottom: 14px; }
 .familia:last-child { margin-bottom: 0; }
 .fam-rot {
-  display: block; font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; opacity: .9;
+  display: block; font-size: 12px; font-weight: 500; color: var(--suave) !important; margin-bottom: 4px;
 }
 .peca {
-  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; text-align: left;
   background: none; border: 1px solid transparent; color: var(--ink);
-  font-size: 12.5px; font-weight: 500; padding: 5px 7px; margin: 0 -7px 1px;
-  width: calc(100% + 14px); border-radius: 7px;
+  font-size: 14px; font-weight: 400; height: 32px; padding: 0 8px; margin: 0 -8px 1px;
+  width: calc(100% + 16px); border-radius: 6px;
 }
-.peca:hover { background: var(--bg); border-color: var(--line); opacity: 1; }
+.peca:hover { background: var(--texto-4); opacity: 1; }
 .peca-ico {
-  width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
   font-size: 11px; flex: none;
 }
 
@@ -773,78 +814,83 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .centro { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .barra {
   display: flex; align-items: center; gap: 8px; padding: 10px 16px;
-  background: var(--panel); border-bottom: 1px solid var(--line);
+  background: var(--fundo); border-bottom: 1px solid var(--line);
 }
 .titulo {
-  flex: 1; min-width: 0; font: inherit; font-size: 15px; font-weight: 700;
+  flex: 1; min-width: 0; font: inherit; font-size: 18px; font-weight: 500;
   letter-spacing: -.02em; border: 1px solid transparent; background: none;
-  padding: 5px 8px; border-radius: 7px; color: var(--ink);
+  height: 34px; padding: 0 8px; border-radius: 6px; color: var(--ink);
 }
 .titulo:hover { border-color: var(--line); }
-.titulo:focus { outline: none; border-color: var(--accent); }
-.vistas { display: inline-flex; background: var(--bg); border: 1px solid var(--line);
-          border-radius: 8px; padding: 2px; gap: 2px; flex: none; }
-.vistas button { font-size: 12.5px; font-weight: 500; color: var(--mut); background: none;
-                 border: none; cursor: pointer; padding: 5px 12px; border-radius: 6px; margin: 0; }
+.titulo:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--acento-25); }
+.vistas { display: inline-flex; background: var(--texto-4); border: 1px solid var(--line);
+          border-radius: 6px; padding: 2px; gap: 2px; flex: none; }
+.vistas button { height: 28px; font-size: 13px; font-weight: 500; color: var(--mut); background: none;
+                 border: none; cursor: pointer; padding: 0 12px; border-radius: 4px; margin: 0; }
 .vistas button:hover { color: var(--ink); }
-.vistas button.on { background: var(--panel); color: var(--ink);
-                    box-shadow: 0 1px 2px rgba(17,17,19,.08); }
+.vistas button.on { background: var(--fundo); color: var(--ink);
+                    box-shadow: 0 1px 2px rgba(10,10,10,.08); }
 .liga {
-  display: flex; align-items: center; gap: 6px; background: var(--panel);
-  border: 1px solid var(--line); color: var(--mut); font-weight: 500; font-size: 12.5px;
+  display: flex; align-items: center; gap: 6px; background: none;
+  border: 1px solid var(--line); color: var(--mut); font-weight: 500; font-size: 13px;
 }
-.liga.on { color: var(--ink); }
+.liga:hover { background: var(--texto-4); opacity: 1; }
+.liga.on { color: var(--ok); }
 .cont {
-  font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 11px;
-  background: var(--bg); color: var(--mut); border-radius: 5px; padding: 1px 5px;
+  font-variant-numeric: tabular-nums; font-size: 12px;
+  background: var(--texto-6); color: var(--mut); border-radius: 999px; padding: 0 7px;
   margin-left: 2px;
 }
 
 .faixa { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid; }
-.faixa.aviso { background: #fffbeb; border-color: #fde68a; color: #7c4a03; }
-.faixa.aviso h2 { color: #a16207; margin-bottom: 5px; }
+.faixa.aviso { background: color-mix(in srgb, var(--aviso) 6%, var(--fundo));
+  border-color: color-mix(in srgb, var(--aviso) 30%, var(--linha)); color: var(--texto); }
+.faixa.aviso h2 { color: var(--aviso); margin-bottom: 5px; }
 .faixa.aviso ul { margin: 0; padding-left: 18px; }
 .faixa.aviso li { margin-bottom: 2px; }
-.faixa.erro { background: #fef2f2; border-color: #fecaca; color: var(--err); cursor: pointer; }
+.faixa.erro { background: color-mix(in srgb, var(--erro) 6%, var(--fundo));
+  border-color: color-mix(in srgb, var(--erro) 30%, var(--linha)); color: var(--err); cursor: pointer; }
 
 .vazio { flex: 1; display: grid; place-content: center; justify-items: center; gap: 6px; }
-.vazio-t { font-size: 16px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
+.vazio-t { font-size: 16px; font-weight: 600; margin: 0; }
 .vazio-s { color: var(--mut); font-size: 13px; margin: 0 0 10px; max-width: 320px; text-align: center; }
 
 /* canvas — o fundo fica só no container: pintar o pane também cobre a textura */
-.vue-flow { background: var(--bg); }
-.vue-flow__edge-path { stroke: #b9b9c4; stroke-width: 1.5; }
+.vue-flow { background: var(--painel); }
+.vue-flow__edge-path { stroke: color-mix(in srgb, var(--texto) 30%, transparent); stroke-width: 1.5; }
 .vue-flow__edge.selected .vue-flow__edge-path,
 .vue-flow__edge:hover .vue-flow__edge-path { stroke: var(--accent); }
 .vue-flow__connection-path { stroke: var(--accent); stroke-width: 1.5; }
 .vue-flow__controls {
-  box-shadow: 0 1px 3px rgba(17, 17, 19, .1); border-radius: 8px; overflow: hidden;
+  box-shadow: none; border: 1px solid var(--linha); border-radius: 6px; overflow: hidden;
 }
 .vue-flow__controls-button {
-  background: var(--panel); border-bottom: 1px solid var(--line); fill: var(--mut);
-  width: 26px; height: 26px;
+  background: var(--fundo); border-bottom: 1px solid var(--line); fill: var(--mut);
+  width: 28px; height: 28px; margin: 0; padding: 6px; border-radius: 0;
 }
-.vue-flow__controls-button:hover { background: var(--bg); }
+.vue-flow__controls-button svg { fill: var(--suave); }
+.vue-flow__controls-button:hover { background: var(--painel); opacity: 1; }
 
 /* janela de gatilhos */
 .resposta { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .resposta input { flex: 1; margin-top: 0; }
 .cortina {
-  position: fixed; inset: 0; background: rgba(17, 17, 19, .35);
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .3);
   backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 60;
   animation: surge .14s ease;
 }
 @keyframes surge { from { opacity: 0 } to { opacity: 1 } }
 .janela {
-  background: var(--panel); border-radius: 12px; width: min(540px, 92vw);
-  max-height: 86vh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(17, 17, 19, .4);
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: 8px; width: min(540px, 92vw);
+  max-height: 86vh; overflow-y: auto; box-shadow: 0 4px 16px rgba(10, 10, 10, .08);
 }
 .janela header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--line);
   position: sticky; top: 0; background: var(--panel);
 }
-.x { background: none; color: var(--mut); font-size: 15px; padding: 2px 6px; }
+.x { background: none; color: var(--mut); font-size: 15px; height: 30px; width: 30px; padding: 0; }
+.x:hover { background: var(--texto-4); color: var(--texto); opacity: 1; }
 .gatilhos { list-style: none; margin: 0; padding: 6px 20px; }
 .gatilhos li.off { opacity: .5; }
 .chave {
@@ -853,7 +899,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   transition: background .15s ease;
 }
 .chave .bolinha {
-  display: block; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--fundo);
   margin-left: 2px; transition: transform .15s ease;
   box-shadow: 0 1px 2px rgba(17, 17, 19, .25);
 }
@@ -867,15 +913,15 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 .gatilhos li:last-child { border-bottom: none; }
 .novo { padding: 4px 20px 20px; }
-.novo label { display: block; font-size: 12px; font-weight: 600; margin-top: 14px; }
+.novo label { display: block; font-size: 13px; font-weight: 500; margin-top: 16px; }
 .novo input, .novo select {
-  width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
-  font: inherit; margin-top: 5px; background: var(--panel); color: var(--ink);
+  width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px;
+  font: inherit; font-size: 14px; margin-top: 6px; background: var(--fundo); color: var(--ink);
 }
 .novo input:focus, .novo select:focus {
-  outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent;
+  outline: none; border-color: var(--acento); box-shadow: 0 0 0 3px var(--acento-25);
 }
-.novo .salvar { margin-top: 18px; width: 100%; padding: 10px; }
+.novo .salvar { margin-top: 20px; width: 100%; height: 36px; }
 .posts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
 .post {
   width: 56px; height: 56px; border-radius: 8px; overflow: hidden; cursor: pointer;
@@ -886,6 +932,6 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .post img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .sem-thumb {
   display: grid; place-items: center; width: 100%; height: 100%;
-  background: var(--bg); font-family: var(--mono); font-size: 8px; color: var(--mut);
+  background: var(--texto-4); font-family: var(--mono); font-size: 8px; color: var(--mut);
 }
 </style>
