@@ -2,7 +2,7 @@
 
 Transmissão é enviar um template para muita gente de uma vez: aviso de live, abertura de turma, lembrete. O comenta EU QUERO monta a fila, respeita o limite do seu número e mostra o relatório.
 
-Precisa do [WhatsApp conectado](./conectar-whatsapp) (e [testado](./conectar-whatsapp#_8-teste-de-verdade)), de um [template aprovado](./criar-template) e de [forma de pagamento](./conectar-whatsapp#_3-cadastre-o-cartao) na conta do WhatsApp. Sem cartão, a transmissão não sai.
+Precisa do [WhatsApp conectado](./conectar-whatsapp) (e [testado](./conectar-whatsapp#_8-teste-de-verdade)), de um [template aprovado](./criar-template) e de [forma de pagamento](./conectar-whatsapp#_3-cadastre-o-cartao) na conta do WhatsApp. Sem cartão, a transmissão não sai. Depois de cadastrar, espere uns minutos: logo em seguida a Meta ainda recusa.
 
 ## Quem pode receber
 

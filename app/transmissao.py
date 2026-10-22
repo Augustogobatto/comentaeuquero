@@ -27,7 +27,7 @@ PRECOS_PADRAO_USD = {"marketing": 0.0625, "utility": 0.0068, "authentication": 0
 # O código continua visível ao lado: é ele que o suporte da Meta pede.
 ERROS_META = {
     131042: ("A conta do WhatsApp está sem forma de pagamento (ou o pagamento falhou).",
-             "Cadastre um cartão no Gerenciador do WhatsApp, em Cobrança, e dispare de novo."),
+             "Cadastre um cartão no Gerenciador do WhatsApp, em Cobrança, espere uns minutos e dispare de novo."),
     131047: ("A pessoa está fora da janela de 24h e a mensagem não era template.",
              "Fora da janela só sai template aprovado."),
     131026: ("O número não recebe esta mensagem: não tem WhatsApp, está com app antigo ou "
