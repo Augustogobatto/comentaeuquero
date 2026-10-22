@@ -230,6 +230,7 @@ def relatorio(transmissao_id) -> dict:
                   SUM(lido_em<>'') lido,
                   SUM(respondido_em<>'') respondido,
                   SUM(status='falhou') falhou,
+                  SUM(enviado_em<>'' AND entregue_em='' AND status<>'falhou') sem_entrega,
                   SUM(status='pulado') pulado,
                   SUM(status IN ('revisar','enviando')) revisar
            FROM wa_envios WHERE transmissao_id=?""", (transmissao_id,)).fetchone())

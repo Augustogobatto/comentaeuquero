@@ -1656,6 +1656,29 @@ def listar_transmissoes(account_id) -> list:
         "SELECT * FROM transmissoes WHERE account_id=? ORDER BY id DESC", (account_id,))]
 
 
+# Filtros da lista "quem recebeu" na tela da transmissão. "sem_entrega" = a Meta aceitou
+# mas ainda não confirmou que chegou no aparelho (celular desligado, sem internet).
+FILTROS_ENVIO = {
+    "entregue": "e.entregue_em<>''",
+    "lido": "e.lido_em<>''",
+    "respondido": "e.respondido_em<>''",
+    "sem_entrega": "e.enviado_em<>'' AND e.entregue_em='' AND e.status<>'falhou'",
+    "falhou": "e.status='falhou'",
+    "pendente": "e.status IN ('pendente','enviando','revisar')",
+    "pulado": "e.status='pulado'",
+}
+
+
+def listar_envios(transmissao_id, filtro="", limite=500) -> list:
+    """Uma linha por pessoa da transmissão, com nome do lead; falhas primeiro."""
+    onde = FILTROS_ENVIO.get(filtro, "1")
+    return [dict(r) for r in conn().execute(
+        f"""SELECT e.*, l.name nome, l.username FROM wa_envios e
+            LEFT JOIN leads l ON l.id = e.lead_id
+            WHERE e.transmissao_id=? AND {onde}
+            ORDER BY e.status='falhou' DESC, e.id LIMIT ?""", (transmissao_id, limite))]
+
+
 def set_status_transmissao(transmissao_id, status) -> None:
     extra = ", concluido_em=?" if status in ("concluida", "cancelada") else ""
     args = [status] + ([now_iso()] if extra else []) + [transmissao_id]

@@ -168,6 +168,54 @@ filtraTpl()
   {% endif %}
 </div>
 
+{% if r.total %}
+{#- uma linha por pessoa: o que a Meta confirmou e, se falhou, por quê -#}
+{% set filtros_envio = [('', 'todos', r.total), ('entregue', 'entregues', r.entregue), ('lido', 'lidas', r.lido),
+                        ('respondido', 'responderam', r.respondido), ('sem_entrega', 'sem confirmação', r.sem_entrega),
+                        ('falhou', 'falharam', r.falhou), ('pendente', 'na fila', r.pendente + r.revisar),
+                        ('pulado', 'puladas', r.pulado)] %}
+<div class="quem" id="quem">
+  <h2>Quem recebeu</h2>
+  <div class="filtro-linha">
+    {% for chave, rot, n in filtros_envio %}{% if not chave or n %}
+    <a class="chip {{ 'ligado' if ver == chave }}" href="/transmissoes/{{ t.id }}{{ '?ver=' ~ chave if chave }}#quem">{{ rot }} <span class="n">{{ n }}</span></a>
+    {% endif %}{% endfor %}
+  </div>
+  {% if envios %}
+  <div class="twrap">
+  <table>
+    <thead><tr><th>Pessoa</th><th>WhatsApp</th><th>Situação</th><th class="num">Quando</th></tr></thead>
+    <tbody>
+    {% for e in envios %}
+    {%- if e.status == 'falhou' %}{% set dot, rot, quando = 'err', 'falhou', e.falhou_em %}
+    {%- elif e.status == 'pulado' %}{% set dot, rot, quando = 'mut', 'pulado (pediu SAIR)', '' %}
+    {%- elif e.respondido_em %}{% set dot, rot, quando = 'ok', 'respondeu', e.respondido_em %}
+    {%- elif e.lido_em %}{% set dot, rot, quando = 'ok', 'lida', e.lido_em %}
+    {%- elif e.entregue_em %}{% set dot, rot, quando = 'ok', 'entregue', e.entregue_em %}
+    {%- elif e.enviado_em %}{% set dot, rot, quando = 'warn', 'enviada, sem confirmação de entrega', e.enviado_em %}
+    {%- elif e.status == 'revisar' %}{% set dot, rot, quando = 'warn', 'a revisar (pode ter chegado)', '' %}
+    {%- elif e.adiar_ate %}{% set dot, rot, quando = 'mut', 'adiada (a pessoa recebeu muitas mensagens)', '' %}
+    {%- else %}{% set dot, rot, quando = 'mut', 'na fila', '' %}{% endif %}
+    <tr>
+      <td>{% if e.lead_id %}<b>{{ e.nome or e.username or 'sem nome' }}</b>{% else %}<span class="sub">lead apagado</span>{% endif %}</td>
+      <td>+{{ e.wa_id }}</td>
+      <td style="white-space:normal;">
+        <span class="dot {{ dot }}"></span>{{ rot }}
+        {% if e.erro_codigo %}{% set x = explicar_erro(e.erro_codigo) %}<br><span class="sub"><code>{{ x.codigo }}</code> {{ x.texto }}</span>{% endif %}
+      </td>
+      <td class="num">{{ quando|brasilia if quando else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if envios|length >= 500 %}<p class="sub">Mostrando as primeiras 500.</p>{% endif %}
+  {% else %}
+  <p class="sub">Ninguém nesse filtro.</p>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if t.status in ('rascunho', 'agendada', 'enviando', 'pausada') %}
 <div class="acoes">
   {% if t.status == 'rascunho' %}<form method="post" action="/transmissoes/{{ t.id }}/disparar" onsubmit="return confirm('Disparar para {{ previsto }} pessoa(s)? As mensagens começam a sair{{ ' no horário agendado' if t.agendada_para else ' agora' }}.')"><button>Disparar</button></form>{% endif %}
@@ -175,6 +223,9 @@ filtraTpl()
   {% if t.status == 'pausada' %}<form method="post" action="/transmissoes/{{ t.id }}/retomar"><button>Retomar</button></form>{% endif %}
   <form method="post" action="/transmissoes/{{ t.id }}/cancelar" onsubmit="return confirm('Cancelar esta transmissão? Quem ainda não recebeu não vai receber.')"><button class="perigo">Cancelar transmissão</button></form>
 </div>
+{% endif %}
+{% if t.status in ('agendada', 'enviando') %}
+<script>setTimeout(() => location.reload(), 15000);</script>
 {% endif %}
 {% endif %}
 <style>
@@ -185,5 +236,7 @@ input[type=datetime-local] { max-width: 280px; margin-top: 8px; }
 .erros-meta { margin-top: 24px; }
 .erros-meta p { font-size: 14px; margin: 8px 0; }
 .erros-meta .sub { display: block; margin-top: 2px; }
+.quem { margin-top: 32px; }
+.quem .filtro-linha { margin: 12px 0 16px; }
 </style>
 {% endblock %}

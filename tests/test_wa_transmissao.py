@@ -182,3 +182,18 @@ def test_131056_repetido_vira_falha(conta_wa, meta_wa):
         agora += 100000
     r = transmissao.relatorio(t)
     assert r["falhou"] == 1 and r["erros"] == {131056: 1}
+
+
+def test_tela_lista_quem_recebeu_com_filtro(conta_wa, meta_wa, logado):
+    a, b = _leads(conta_wa, 2, tag="quem")
+    t = db.criar_transmissao(conta_wa["id"], "Quem", "oi", "pt_BR", "marketing", {}, {"tipo": "tag", "valor": "quem"}, "", 60)
+    transmissao.tick(agora=7000.0)
+    transmissao.tick(agora=7100.0)
+    envios = {e["lead_id"]: e for e in db.listar_envios(t)}
+    wa_webhook.process(_status("pn1", envios[a["id"]]["wamid"], "delivered"))
+    db.conn().execute("UPDATE wa_envios SET status='falhou', erro_codigo=131026 WHERE id=?", (envios[b["id"]]["id"],)); db.conn().commit()
+    html = logado.get(f"/transmissoes/{t}").text
+    assert "Quem recebeu" in html and a["name"] in html and b["name"] in html and "131026" in html
+    so_falhas = logado.get(f"/transmissoes/{t}?ver=falhou").text
+    assert b["name"] in so_falhas and a["name"] not in so_falhas
+    assert [e["lead_id"] for e in db.listar_envios(t, "entregue")] == [a["id"]]

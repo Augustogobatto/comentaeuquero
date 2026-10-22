@@ -1334,7 +1334,7 @@ async def transmissao_criar(request: Request):
 
 
 @app.get("/transmissoes/{transmissao_id}")
-def transmissao_ver(request: Request, transmissao_id: int):
+def transmissao_ver(request: Request, transmissao_id: int, ver: str = ""):
     guard = require_login(request)
     if guard:
         return guard
@@ -1345,7 +1345,9 @@ def transmissao_ver(request: Request, transmissao_id: int):
         raise HTTPException(404)
     return templates.TemplateResponse(request, "transmissao.html", {
         "account": account, "modo": "ver", "t": t, "r": transmissao.relatorio(t["id"]),
-        "previsto": db.contar_publico(account["id"], t["publico"])})
+        "previsto": db.contar_publico(account["id"], t["publico"]),
+        "ver": ver if ver in db.FILTROS_ENVIO else "",
+        "envios": db.listar_envios(t["id"], ver), "explicar_erro": transmissao.explicar_erro})
 
 
 def _muda_status(request, transmissao_id, de, para):
