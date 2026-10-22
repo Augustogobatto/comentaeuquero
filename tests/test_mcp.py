@@ -373,15 +373,15 @@ def test_criar_fluxo_validacoes(conta_ig):
     with pytest.raises(F.ErroFerramenta, match="Link inválido"):
         F.criar_fluxo("Tres", {"tipo": "direct", "palavras": ["z"]},
                       [{"tipo": "link", "texto": "x", "url": "javascript:alert(1)"}])
-    r = F.criar_fluxo("Quatro", {"tipo": "direct", "palavras": ["OI"]}, [{"tipo": "mensagem", "texto": "x"}],
-                      ligar=True)
-    assert r["ligado"] is True
+    r = F.criar_fluxo("Quatro", {"tipo": "direct", "palavras": ["OI"]}, [{"tipo": "mensagem", "texto": "x"}])
+    assert r["ligado"] is False and db.get_flow(r["id"])["active"] == 0
     r = F.criar_fluxo("Cinco", {"tipo": "comentario", "palavras": []}, [{"tipo": "mensagem", "texto": "x"}])
     assert any("QUALQUER" in a for a in r["avisos"])
 
 
 def test_palavra_repetida_avisa(conta_ig):
-    F.criar_fluxo("A", {"tipo": "comentario", "palavras": ["promo"]}, [{"tipo": "mensagem", "texto": "x"}], ligar=True)
+    a = F.criar_fluxo("A", {"tipo": "comentario", "palavras": ["promo"]}, [{"tipo": "mensagem", "texto": "x"}])
+    db.update_flow(a["id"], active=1)   # ligado pelo painel
     r = F.criar_fluxo("B", {"tipo": "comentario", "palavras": ["Promo"]}, [{"tipo": "mensagem", "texto": "y"}])
     assert any("'A'" in a for a in r["avisos"])
 
@@ -396,8 +396,6 @@ def test_editar_ligar_gatilho_e_ver(conta_ig):
         F.editar_mensagem_do_fluxo(fid, "n2", texto="x")
     with pytest.raises(F.ErroFerramenta, match="não existe"):
         F.editar_mensagem_do_fluxo(fid, "n9", texto="x")
-    F.ligar_desligar_fluxo(fid, True)
-    assert db.get_flow(fid)["active"] == 1
     F.adicionar_gatilho(fid, "story", ["mentoria"])
     assert [t["type"] for t in db.list_triggers(fid)] == ["comment", "story_reply"]
     lead = db.touch_lead(conta_ig["id"], "ig-1", "mentoria", "fulana")
@@ -415,6 +413,88 @@ def test_editar_ligar_gatilho_e_ver(conta_ig):
     with pytest.raises(F.ErroFerramenta):
         F.resumo("hoje", fluxo="nao-existe")
     assert lead
+
+
+# ---------- fluxo no ar não muda pelo Claude ----------
+
+def _no_ar(conta):
+    fid = F.criar_fluxo("Ao vivo", {"tipo": "comentario", "palavras": ["aovivo"]},
+                        [{"tipo": "mensagem", "texto": "original", "link": "https://meu.site"}])["id"]
+    db.update_flow(fid, active=1)   # quem liga é o painel
+    return fid
+
+
+def _foto(fid):
+    f = db.get_flow(fid)
+    return f["active"], f["graph"], [(t["type"], t["keywords"], t["active"]) for t in db.list_triggers(fid)]
+
+
+def test_ligar_desligar_so_devolve_link(conta_ig):
+    fid = F.criar_fluxo("Rascunho", {"tipo": "comentario", "palavras": ["r"]},
+                        [{"tipo": "mensagem", "texto": "x"}])["id"]
+    r = F.ligar_desligar_fluxo(fid, True)
+    assert db.get_flow(fid)["active"] == 0
+    assert r["nada_foi_alterado"] and r["ligado_agora"] is False
+    assert r["link_no_editor"].endswith(f"/editor?f={fid}")
+    vivo = _no_ar(conta_ig)
+    r = F.ligar_desligar_fluxo(vivo, False)
+    assert db.get_flow(vivo)["active"] == 1 and r["ligado_agora"] is True
+
+
+def test_fluxo_ligado_nao_muda_pelo_claude(conta_ig):
+    fid = _no_ar(conta_ig)
+    antes = _foto(fid)
+    with pytest.raises(F.ErroFerramenta, match=f"Nada foi alterado.*/editor\\?f={fid}"):
+        F.editar_mensagem_do_fluxo(fid, "n1", texto="clique aqui", link="https://golpe.example")
+    with pytest.raises(F.ErroFerramenta, match="Nada foi alterado"):
+        F.editar_mensagem_do_fluxo(fid, "n1", link="")
+    with pytest.raises(F.ErroFerramenta, match="Nada foi alterado"):
+        F.adicionar_gatilho(fid, "direct", [])
+    assert _foto(fid) == antes
+
+
+def test_fluxo_desligado_com_gente_no_meio_nao_muda(conta_ig):
+    fid = F.criar_fluxo("Saindo", {"tipo": "comentario", "palavras": ["s"]},
+                        [{"tipo": "esperar", "minutos": 30}, {"tipo": "mensagem", "texto": "depois"}])["id"]
+    lead = db.touch_lead(conta_ig["id"], "ig-meio", "s", "meio")
+    sid = db.open_session(conta_ig["id"], lead["id"], fid, node_id="n1",
+                          window_expires_at=db.in_seconds_iso(3600))
+    antes = _foto(fid)
+    with pytest.raises(F.ErroFerramenta, match="1 pessoa"):
+        F.editar_mensagem_do_fluxo(fid, "n2", texto="outra")
+    assert _foto(fid) == antes
+    db.update_session(sid, window_expires_at=db.in_seconds_iso(-60))   # janela venceu
+    F.editar_mensagem_do_fluxo(fid, "n2", texto="outra")
+    assert db.get_flow(fid)["graph"]["nodes"][1]["data"]["text"] == "outra"
+
+
+def test_fluxo_no_ar_pelo_transporte(conta_ig, token):
+    fid = _no_ar(conta_ig)
+    antes = _foto(fid)
+    tentativas = [
+        ("editar_mensagem_do_fluxo", {"fluxo_id": fid, "passo_id": "n1", "texto": "x"}),
+        ("editar_mensagem_do_fluxo", {"fluxo_id": fid, "passo_id": "n1", "texto": "x", "forcar": True}),
+        ("adicionar_gatilho", {"fluxo_id": fid, "gatilho": {"tipo": "direct", "palavras": []}}),
+        ("adicionar_gatilho", {"fluxo_id": fid, "gatilho": {"tipo": "direct", "palavras": [], "ativo": True}}),
+        ("ligar_desligar_fluxo", {"fluxo_id": fid, "ligado": False}),
+        ("ligar_desligar_fluxo", {"fluxo_id": fid, "ligado": False, "confirmar": True}),
+    ]
+    for nome, args in tentativas:
+        _chama(token, nome, args)
+    assert _foto(fid) == antes
+    r = _chama(token, "criar_fluxo", {"nome": "Ja no ar", "ligar": True,
+                                      "gatilho": {"tipo": "direct", "palavras": ["j"]},
+                                      "passos": [{"tipo": "mensagem", "texto": "x"}]})
+    assert r.is_error and not any(f["name"] == "Ja no ar" for f in db.list_flows(conta_ig["id"]))
+    r = _chama(token, "criar_fluxo", {"nome": "Rascunho", "gatilho": {"tipo": "direct", "palavras": ["k"]},
+                                      "passos": [{"tipo": "mensagem", "texto": "x"}]})
+    rid = r.structured_content["id"]
+    assert not _chama(token, "editar_mensagem_do_fluxo", {"fluxo_id": rid, "passo_id": "n1", "texto": "y"}).is_error
+    assert not _chama(token, "adicionar_gatilho", {"fluxo_id": rid, "gatilho": {"tipo": "story", "palavras": ["k"]}}).is_error
+    assert db.get_flow(rid)["graph"]["nodes"][0]["data"]["text"] == "y" and len(db.list_triggers(rid)) == 2
+    assert db.get_flow(rid)["active"] == 0
+    assert next(t for t in (_mcp(token, lambda c: c.list_tools())).tools
+                if t.name == "ligar_desligar_fluxo").annotations.read_only_hint is True
 
 
 def test_leads_filtros_paginacao_e_etiqueta(conta_ig):

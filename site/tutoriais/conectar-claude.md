@@ -43,22 +43,22 @@ Gerar um token novo invalida o anterior. **Revogar** apaga o token e quem usava 
 
 ## O que o Claude pode e não pode fazer
 
-Pode ler resultados, fluxos, leads, templates e transmissões; criar e editar fluxos, gatilhos e etiquetas; enviar template pra aprovação da Meta; preparar transmissão como rascunho e mostrar a prévia.
+Pode ler resultados, fluxos, leads, templates e transmissões; criar fluxos e editar os que estão desligados (mensagens e gatilhos); etiquetar leads; enviar template pra aprovação da Meta; preparar transmissão como rascunho e mostrar a prévia.
 
-Fluxo criado por conversa nasce **desligado** e abre organizado no editor visual. O Claude manda o link do editor e pergunta se pode ligar.
+Fluxo criado por conversa nasce **desligado** e abre organizado no editor visual. **Quem liga e desliga é você**, no editor: o Claude manda o link. Fluxo ligado (ou com gente no meio dele) o Claude também não edita; ele te passa o link pra mudar lá, ou pra desligar antes.
 
 Transmissão manda mensagem pra gente de verdade e custa dinheiro, então **o Claude não dispara**. Ele cria o rascunho e te mostra a prévia: quantas pessoas, qual template, custo estimado, quantos ficam de fora por terem pedido SAIR e se cabe no limite de 24h. Junto vem o link da transmissão no painel. Você confere lá e aperta **Disparar**.
 
-É de propósito: o Claude lê mensagens de leads, e um texto malicioso poderia tentar convencer ele a enviar. Como não existe ferramenta que envie, não tem o que convencer.
+É de propósito: o Claude lê mensagens de leads, e um texto malicioso poderia tentar convencer ele a enviar, ou a trocar o link de um fluxo no ar. Como nenhuma ferramenta envia nem mexe no que está no ar, não tem o que convencer.
 
 O envio segue as mesmas regras do painel: só quem deu consentimento, quem pediu SAIR fica de fora, ritmo, limite diário e pausas pedidas pela Meta.
 
-Não pode: disparar transmissão, ver tokens ou senhas, mudar as credenciais da Meta, apagar a conta ou leads.
+Não pode: disparar transmissão, ligar ou desligar fluxo, editar fluxo no ar, ver tokens ou senhas, mudar as credenciais da Meta, apagar a conta ou leads.
 
 ## Segurança
 
 - Só o hash do token fica no banco. Sem https, a instância recusa o acesso (o token iria legível).
 - Cada chamada vira um evento `mcp_ferramenta` com o nome da ferramenta e o resultado, nunca o conteúdo.
-- Limite de chamadas por minuto (leitura, escrita e disparo têm tetos diferentes) e trava por IP depois de muitas tentativas com token errado.
+- Limite de chamadas por minuto (leitura e escrita têm tetos diferentes) e trava por IP depois de muitas tentativas com token errado.
 
 A lista completa de ferramentas está na [referência](/referencia/mcp).

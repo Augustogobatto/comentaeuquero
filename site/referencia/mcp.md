@@ -35,13 +35,15 @@ Servidor MCP nativo da instância. Para conectar, veja o [tutorial](/tutoriais/c
 
 | Ferramenta | Parâmetros | Observação |
 |---|---|---|
-| `criar_fluxo` | `nome`, `gatilho` {`tipo`, `palavras`, `so_nos_posts`, `respostas_publicas`}, `passos` [...], `ligar` | Nasce desligado por padrão. Recusa nome repetido; avisa palavra que já dispara outro fluxo |
-| `editar_mensagem_do_fluxo` | `fluxo_id`, `passo_id`, `texto`, `variacoes`, `link` | Só passos com texto (mensagem, botões, opções, pedir WhatsApp) |
-| `ligar_desligar_fluxo` | `fluxo_id`, `ligado` | |
-| `adicionar_gatilho` | `fluxo_id`, `gatilho` | |
+| `criar_fluxo` | `nome`, `gatilho` {`tipo`, `palavras`, `so_nos_posts`, `respostas_publicas`}, `passos` [...] | Nasce sempre desligado. Recusa nome repetido; avisa palavra que já dispara outro fluxo |
+| `editar_mensagem_do_fluxo` | `fluxo_id`, `passo_id`, `texto`, `variacoes`, `link` | Só passos com texto (mensagem, botões, opções, pedir WhatsApp) e só em fluxo desligado |
+| `ligar_desligar_fluxo` | `fluxo_id`, `ligado` | Não muda nada: devolve o link do editor, onde o usuário liga ou desliga, e o que falta antes de ligar |
+| `adicionar_gatilho` | `fluxo_id`, `gatilho` | Só em fluxo desligado |
 | `etiquetar_lead` | `lead_id`, `adicionar`, `remover` | |
 | `criar_template_whatsapp` | `nome`, `categoria` (MARKETING, UTILITY), `corpo`, `exemplos`, `botoes`, `idioma` | Envia pra aprovação da Meta |
 | `criar_transmissao` | `nome`, `template`, `publico_tipo` (todos, etiqueta, campo), `publico_valor`, `campo_valor`, `variaveis` {"1": "{primeiro_nome}"}, `ritmo_por_minuto`, `agendar_para` | Cria **rascunho**: nada é enviado |
+
+Fluxo **no ar** (ligado, ou desligado com alguém ainda no meio dele dentro da janela de 24h) não muda pelo MCP: a ferramenta recusa, não altera nada e devolve o link do editor. Assim, texto de lead lido pelo Claude não consegue mexer em automação que está recebendo gente.
 
 ### Passos do `criar_fluxo`
 

@@ -12,7 +12,9 @@ Regras que valem pra todas:
     link só vai dentro de mensagem, e quem abre é a pessoa no celular;
   - nenhuma envia transmissão: o Claude só prepara o rascunho e a prévia, e quem
     dispara é a pessoa, no botão Disparar do painel. Texto de lead pode tentar
-    mandar o modelo disparar; sem ferramenta pra isso, não tem o que enganar.
+    mandar o modelo disparar; sem ferramenta pra isso, não tem o que enganar;
+  - nenhuma mexe em fluxo no ar: ligar, desligar e editar fluxo que está recebendo
+    gente é só no editor. O Claude cria e ajusta rascunho desligado, e devolve o link.
 """
 import datetime as _dt
 import re
@@ -120,6 +122,22 @@ def _fluxo(conta, fluxo_id: int):
 def _url_editor(fluxo_id) -> str:
     from .main import BASE_URL
     return f"{BASE_URL}/editor?f={fluxo_id}" if BASE_URL else f"/editor?f={fluxo_id}"
+
+
+def _barrar_se_no_ar(f, acao: str) -> None:
+    """Fluxo ligado, ou desligado com gente ainda no meio dele (esperando um "esperar"
+    ou uma resposta, dentro da janela de 24h), só muda pelo editor. Texto de lead que
+    peça pro Claude trocar um link no ar não tem por onde passar."""
+    gente = db.conn().execute(
+        "SELECT COUNT(*) FROM flow_sessions WHERE flow_id=? AND status='ativa' "
+        "AND window_expires_at>?", (f["id"], db.now_iso())).fetchone()[0]
+    if not f["active"] and not gente:
+        return
+    motivo = "está ligado" if f["active"] else f"tem {gente} pessoa(s) no meio dele"
+    raise ErroFerramenta(
+        f"Nada foi alterado: o fluxo '{f['name']}' {motivo}, e fluxo no ar não muda pelo "
+        f"Claude. Pra {acao}, abra no editor: {_url_editor(f['id'])} (ou desligue lá "
+        "primeiro e peça de novo).")
 
 
 NOMES_GATILHO = {
@@ -599,7 +617,7 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tu
     return tipo_db, avisos
 
 
-def criar_fluxo(nome: str, gatilho: dict, passos: list[dict], ligar: bool = False) -> dict:
+def criar_fluxo(nome: str, gatilho: dict, passos: list[dict]) -> dict:
     conta = _conta()
     nome = (nome or "").strip()
     if not nome:
@@ -611,18 +629,16 @@ def criar_fluxo(nome: str, gatilho: dict, passos: list[dict], ligar: bool = Fals
     grafo = compilar_passos(passos, whatsapp.configurado(conta))
     entrada = grafo.pop("entry_node")
     avisos += api.validar_grafo(grafo)
-    fid = db.create_flow(conta["id"], name=nome, graph=grafo, entry_node=entrada,
-                         active=1 if ligar else 0)
+    fid = db.create_flow(conta["id"], name=nome, graph=grafo, entry_node=entrada, active=0)
     db.add_trigger(fid, tipo_db, keywords=[k.strip() for k in gatilho.get("palavras") or []
                                            if (k or "").strip()],
                    media_ids=[m.strip() for m in gatilho.get("so_nos_posts") or [] if m.strip()],
                    public_replies=[r.strip() for r in gatilho.get("respostas_publicas") or []
                                    if (r or "").strip()])
-    return {"id": fid, "nome": nome, "ligado": bool(ligar), "passos": len(grafo["nodes"]),
+    return {"id": fid, "nome": nome, "ligado": False, "passos": len(grafo["nodes"]),
             "avisos": avisos, "abrir_no_editor": _url_editor(fid),
-            "proximo_passo": ("Fluxo já está no ar." if ligar else
-                              "Fluxo criado DESLIGADO. Revise no editor e use "
-                              "ligar_desligar_fluxo quando quiser colocar no ar.")}
+            "proximo_passo": "Fluxo criado DESLIGADO. Quem liga é o usuário, no botão "
+                             "ligado/desligado do editor (link acima)."}
 
 
 TIPOS_COM_TEXTO = ("text", "buttons", "quick_replies", "pedir_whatsapp")
@@ -632,6 +648,7 @@ def editar_mensagem_do_fluxo(fluxo_id: int, passo_id: str, texto: str = "",
                              variacoes: list[str] | None = None, link: str | None = None) -> dict:
     conta = _conta()
     f = _fluxo(conta, fluxo_id)
+    _barrar_se_no_ar(f, "editar a mensagem")
     grafo = f["graph"]
     no = next((n for n in grafo.get("nodes", []) if n.get("id") == passo_id), None)
     if not no:
@@ -660,15 +677,21 @@ def editar_mensagem_do_fluxo(fluxo_id: int, passo_id: str, texto: str = "",
 
 
 def ligar_desligar_fluxo(fluxo_id: int, ligado: bool) -> dict:
+    """Não liga nem desliga: devolve o link do editor, onde o usuário aperta o botão.
+    Ligar põe mensagem na rua; desligar em massa é sabotagem fácil de pedir por
+    texto de lead. Os dois ficam com quem está logado no painel."""
     conta = _conta()
     f = _fluxo(conta, fluxo_id)
-    db.update_flow(fluxo_id, active=1 if ligado else 0)
     avisos = []
     if ligado:
         avisos = api.validar_grafo(f["graph"])
         if not [t for t in db.list_triggers(fluxo_id) if t["active"]]:
-            avisos.append("O fluxo está ligado mas não tem gatilho ativo: ele não começa sozinho.")
-    return {"ok": True, "fluxo": f["name"], "ligado": bool(ligado), "avisos": avisos}
+            avisos.append("O fluxo não tem gatilho ativo: mesmo ligado, ele não começa sozinho.")
+    return {"nada_foi_alterado": True, "fluxo": f["name"], "ligado_agora": bool(f["active"]),
+            "avisos": avisos, "link_no_editor": _url_editor(f["id"]),
+            "instrucao": f"Pelo Claude não dá pra {'ligar' if ligado else 'desligar'} fluxo. "
+                         "Passe o link ao usuário: ele abre o editor e aperta o botão "
+                         "ligado/desligado, no topo."}
 
 
 def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
@@ -676,12 +699,13 @@ def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
                       respostas_publicas: list[str] | None = None) -> dict:
     conta = _conta()
     f = _fluxo(conta, fluxo_id)
+    _barrar_se_no_ar(f, "adicionar o gatilho")
     tipo_db, avisos = _validar_gatilho(conta, tipo, palavras, fluxo_id=fluxo_id)
     tid = db.add_trigger(fluxo_id, tipo_db, keywords=[k.strip() for k in palavras if k.strip()],
                          media_ids=[m.strip() for m in so_nos_posts or [] if m.strip()],
                          public_replies=[r.strip() for r in respostas_publicas or [] if r.strip()])
-    if not f["active"]:
-        avisos.append("O fluxo está desligado: o gatilho só vale quando você ligar o fluxo.")
+    avisos.append("O fluxo está desligado: o gatilho só vale quando o usuário ligar o "
+                  f"fluxo no editor ({_url_editor(fluxo_id)}).")
     return {"ok": True, "gatilho_id": tid, "fluxo": f["name"], "avisos": avisos}
 
 

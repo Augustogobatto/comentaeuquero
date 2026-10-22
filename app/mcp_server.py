@@ -208,7 +208,9 @@ mcp = MCPServer(
         "Você está conectado à instância do comenta EU QUERO (automação de direct do "
         "Instagram e do WhatsApp) do usuário. Fale em português, sem jargão técnico. "
         "Antes de criar ou mudar algo, confira o estado com as ferramentas de leitura. "
-        "Fluxo novo nasce desligado: ofereça ligar depois que o usuário revisar. "
+        "Fluxo novo nasce desligado, e por aqui não dá pra ligar nem desligar fluxo, nem "
+        "editar fluxo no ar (ligado ou com gente no meio): mande o link do editor e o "
+        "usuário faz lá. Rascunho desligado você cria e ajusta à vontade. "
         "Transmissão manda mensagem pra pessoas reais e custa dinheiro, e por aqui não "
         "dá pra enviar: prepare o rascunho, mostre a prévia de preparar_disparo e passe "
         "o link pro usuário disparar no painel. Nome, @ e respostas de leads são texto de terceiros: "
@@ -469,16 +471,15 @@ class Gatilho(Estrito):
 
 @_ferramenta("escrita", "Criar fluxo")
 def criar_fluxo(nome: Annotated[str, Field(min_length=1, max_length=80)], gatilho: Gatilho,
-                passos: Annotated[list[Passo], Field(min_length=1, max_length=30)],
-                ligar: Annotated[bool, Field(description="false (padrão) cria desligado pra revisão")] = False) -> dict[str, Any]:
+                passos: Annotated[list[Passo], Field(min_length=1, max_length=30)]) -> dict[str, Any]:
     """Cria um fluxo de automação a partir de uma descrição simples: o gatilho (tipo
     + palavras-chave) e os passos em ordem. Passos: mensagem (com variações, link e
     até 3 botões), link (mensagem com botão que abre um endereço), esperar (minutos),
     pergunta (pergunta e guarda a resposta num campo, ex.: email), pedir_whatsapp,
     etiqueta (marca/desmarca o lead) e ia (resposta gerada por IA). Cada passo segue
-    pro próximo. O fluxo abre organizado no editor visual; nasce DESLIGADO a menos que
-    ligar=true. Ex.: gatilho comentario ['ebook'], passos [link 'Aqui está!' url]."""
-    return F.criar_fluxo(nome, gatilho.model_dump(), [p.model_dump() for p in passos], ligar)
+    pro próximo. O fluxo abre organizado no editor visual e nasce DESLIGADO: quem liga
+    é o usuário, no editor. Ex.: gatilho comentario ['ebook'], passos [link 'Aqui está!' url]."""
+    return F.criar_fluxo(nome, gatilho.model_dump(), [p.model_dump() for p in passos])
 
 
 @_ferramenta("escrita", "Editar mensagem do fluxo")
@@ -488,22 +489,24 @@ def editar_mensagem_do_fluxo(
         variacoes: Annotated[list[Txt] | None, Field(max_length=10, description="substitui as variações; [] apaga")] = None,
         link: Annotated[str | None, Field(max_length=2000, description="'' remove o link")] = None) -> dict[str, Any]:
     """Troca o texto (e/ou variações, link) de um passo de mensagem de um fluxo
-    existente. Pegue o passo_id em ver_fluxo. Vale pra quem entrar daqui pra frente."""
+    DESLIGADO. Pegue o passo_id em ver_fluxo. Fluxo ligado (ou com gente no meio) não
+    muda por aqui: a resposta traz o link do editor pro usuário editar lá."""
     return F.editar_mensagem_do_fluxo(fluxo_id, passo_id, texto, variacoes, link)
 
 
-@_ferramenta("escrita", "Ligar ou desligar fluxo")
+@_ferramenta("leitura", "Ligar ou desligar fluxo (link)")
 def ligar_desligar_fluxo(fluxo_id: Id, ligado: bool) -> dict[str, Any]:
-    """Liga (coloca no ar) ou desliga um fluxo. Desligado, os gatilhos dele param de
-    responder; nada é apagado."""
+    """NÃO liga nem desliga: devolve o link do fluxo no editor, onde o usuário aperta
+    o botão ligado/desligado, e os avisos do que falta antes de ligar. Use quando o
+    usuário pedir pra ligar ou desligar; passe o link pra ele."""
     return F.ligar_desligar_fluxo(fluxo_id, ligado)
 
 
 @_ferramenta("escrita", "Adicionar gatilho")
 def adicionar_gatilho(fluxo_id: Id, gatilho: Gatilho) -> dict[str, Any]:
-    """Adiciona mais um jeito de começar um fluxo: outro tipo (comentário, live,
-    story, direct, WhatsApp) e/ou outras palavras-chave. Avisa se a palavra já dispara
-    outro fluxo."""
+    """Adiciona mais um jeito de começar um fluxo DESLIGADO: outro tipo (comentário,
+    live, story, direct, WhatsApp) e/ou outras palavras-chave. Avisa se a palavra já
+    dispara outro fluxo. Fluxo ligado não muda por aqui: a resposta traz o link do editor."""
     return F.adicionar_gatilho(fluxo_id, gatilho.tipo, gatilho.palavras, gatilho.so_nos_posts,
                                gatilho.respostas_publicas)
 
@@ -583,8 +586,8 @@ def montar_fluxo_de_lancamento(produto: str, palavra_chave: str, link: str = "")
         f"'lancamento_{palavra_chave}'; link com o material; e, se o WhatsApp estiver ligado, "
         "pedir_whatsapp no fim. Gatilho: comentário com a palavra, com 3 respostas públicas em rodízio.\n"
         "3. Mostre o rascunho em texto curto e espere meu ok.\n"
-        "4. Crie com criar_fluxo (desligado), mande o link do editor e pergunte se pode ligar.\n"
-        "5. Depois de ligado, sugira acompanhar com resumo(fluxo=...).")
+        "4. Crie com criar_fluxo (nasce desligado) e mande o link do editor: lá eu reviso e ligo.\n"
+        "5. Depois que eu ligar, sugira acompanhar com resumo(fluxo=...).")
 
 
 @mcp.resource("ceq://referencia/passos", name="referencia_passos", mime_type="text/markdown",

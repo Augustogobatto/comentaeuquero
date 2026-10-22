@@ -23,6 +23,8 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
   Limite por minuto por acesso e trava por IP depois de falhas de autenticação.
 - Transmissão em **rascunho**: só sai pelo botão Disparar no painel. O Claude não
   tem ferramenta que envie, então texto de lead não consegue induzir um disparo.
+- Fluxo no ar fica com você: o Claude não liga nem desliga fluxo (manda o link do
+  editor) e só edita mensagem ou gatilho de fluxo desligado e sem ninguém no meio.
 
 ### Corrigido
 - Fluxo criado por script com nó sem `position` quebrava o editor (o canvas ficava no

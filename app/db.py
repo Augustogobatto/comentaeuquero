@@ -1559,7 +1559,7 @@ def _transmissao_row(r) -> dict:
 def criar_transmissao(account_id, nome, template, idioma, categoria, variaveis, publico_,
                       agendada_para, ritmo_por_minuto, status="agendada") -> int:
     """`status='rascunho'` cria parada: o worker só olha agendada/enviando, então o
-    rascunho não sai até alguém disparar (painel ou Claude, com confirmação)."""
+    rascunho não sai até alguém apertar Disparar no painel."""
     cur = conn().execute(
         """INSERT INTO transmissoes (account_id, nome, template, idioma, categoria, variaveis,
                                      publico, agendada_para, ritmo_por_minuto, criado_em, status)

@@ -96,7 +96,8 @@ quem tem a etiqueta comprador". É código do próprio CEQ: nada passa por servi
   Claude** e use `claude mcp add --transport http ceq https://SEU-DOMINIO/mcp --header "Authorization: Bearer SEU_TOKEN"`.
 
 São 17 ferramentas (resultados, fluxos, leads, templates, transmissões). Fluxo criado por
-conversa nasce desligado. O Claude prepara a transmissão e mostra a prévia (público,
+conversa nasce desligado, e o Claude só mexe em fluxo desligado: ligar, desligar e editar
+fluxo no ar é você, no editor (ele manda o link). O Claude prepara a transmissão e mostra a prévia (público,
 custo) com o link do painel, mas não dispara: quem envia é você, no botão Disparar.
 Nenhuma ferramenta mostra token ou segredo.
 Detalhes: <https://comentaeuquero.com/tutoriais/conectar-claude>.
