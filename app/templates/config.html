@@ -110,7 +110,7 @@
   <label>ID do número de telefone (Phone Number ID)
     <input type="text" name="wa_phone_number_id" inputmode="numeric" value="{{ wa_ids.phone }}" autocomplete="off"></label>
   <label>Token permanente
-    <span class="sub">{% if tem_wa_token %}salvo, deixe em branco pra manter{% else %}de um usuário do sistema (System User) com whatsapp_business_messaging e whatsapp_business_management{% endif %}</span>
+    <span class="sub">{% if tem_wa_token %}salvo, deixe em branco pra manter{% else %}de um usuário do sistema (System User) com as 3 permissões whatsapp_business_* (messaging, management e manage_events){% endif %}</span>
     <input type="password" name="wa_token" value="" autocomplete="off"{% if tem_wa_token %} placeholder="•••••• (preenchido)"{% endif %}></label>
   <label>Chave secreta do app geral da Meta
     <span class="sub">{% if wa_secret_no_env %}definida no .env{% elif tem_wa_secret %}salva, deixe em branco pra manter{% else %}é com ela que a Meta assina os eventos do WhatsApp (Configurações do app → Básico){% endif %}</span>
@@ -134,7 +134,7 @@
     <summary><strong>Como ligar</strong> (no mesmo app da Meta do Instagram)</summary>
     <ol>
       <li>No app em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Adicionar produto → WhatsApp</strong>. Em <strong>Configuração da API</strong> estão o ID da conta do WhatsApp Business e o ID do número.</li>
-      <li>Token permanente: no <strong>Gerenciador de Negócios → Usuários do sistema</strong>, crie um usuário, dê acesso ao app e à conta do WhatsApp e gere um token com <code>whatsapp_business_messaging</code> e <code>whatsapp_business_management</code>.</li>
+      <li>Token permanente: no <strong>Gerenciador de Negócios → Usuários do sistema</strong>, crie um usuário, dê acesso ao app e à conta do WhatsApp e gere um token sem expiração com <code>whatsapp_business_messaging</code>, <code>whatsapp_business_management</code> e <code>whatsapp_business_manage_events</code>. Atribua ao usuário do sistema primeiro o app e depois a conta em <strong>Contas de mensagens</strong>.</li>
       <li>Webhook: o mesmo <code>{{ base_url or "SEU_ENDERECO" }}/webhook</code> com o mesmo token de verificação <code>{{ verify_token }}</code>. Em <strong>WhatsApp → Configuração → Campos do webhook</strong>, assine: <code>messages</code> (mensagens recebidas e status de enviado/entregue/lido), <code>user_preferences</code> (a pessoa parou ou voltou a aceitar marketing), <code>phone_number_quality_update</code> (qualidade e limite do número) e <code>business_capability_update</code> (aumento de limite aprovado). Os templates não precisam de webhook: o painel sincroniza com a Meta.</li>
       <li>A chave secreta que assina o WhatsApp é a do <strong>app geral</strong> (Configurações do app → Básico), diferente da do Instagram acima.</li>
     </ol>
