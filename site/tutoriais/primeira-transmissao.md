@@ -1,12 +1,8 @@
 # Primeira transmissão
 
-::: info Recurso novo, em construção
-Parte do canal WhatsApp, que chega numa próxima versão. Nomes podem mudar até o lançamento.
-:::
-
 Transmissão é enviar um template para muita gente de uma vez: aviso de live, abertura de turma, lembrete. O comenta EU QUERO monta a fila, respeita o limite do seu número e mostra o relatório.
 
-Precisa do [WhatsApp conectado](./conectar-whatsapp) e de um [template aprovado](./criar-template).
+Precisa do [WhatsApp conectado](./conectar-whatsapp) (e [testado](./conectar-whatsapp#_8-teste-de-verdade)), de um [template aprovado](./criar-template) e de [forma de pagamento](./conectar-whatsapp#_3-cadastre-o-cartao) na conta do WhatsApp. Sem cartão, a transmissão não sai.
 
 ## Quem pode receber
 
@@ -39,6 +35,8 @@ Mande primeiro para uma etiqueta só com você (por exemplo `teste`). Confira te
 O relatório mostra, por pessoa e no total:
 
 - **Enviado**, **Entregue**, **Lido**, **Respondido**, **Falhou** (com o motivo que a Meta devolveu).
+
+Tudo falhou com o mesmo erro? Veja [Deu erro?](./conectar-whatsapp#deu-erro) na conexão do WhatsApp.
 
 Respostas aos botões do template podem disparar fluxos, como no [template](./criar-template#botoes-que-continuam-o-fluxo).
 

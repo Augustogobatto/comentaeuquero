@@ -4,6 +4,10 @@ Cada instalação conversa com o Instagram por um app que é seu, criado no pain
 
 Você vai precisar de três coisas abertas: o painel da Meta, o painel do seu comenta EU QUERO e o Instagram no celular.
 
+::: tip Este app é só do Instagram
+O WhatsApp usa outro app, criado do zero e **não publicado**. Não adicione o WhatsApp neste. Veja [Conectar o WhatsApp](./conectar-whatsapp).
+:::
+
 ::: info Os nomes das telas
 A Meta muda nomes e posições com frequência. Os nomes abaixo são os da interface em português em outubro de 2026. Se algo estiver diferente, procure pelo termo mais próximo e [conte pra gente](https://github.com/Augustogobatto/comentaeuquero/issues).
 :::
@@ -84,6 +88,8 @@ No menu lateral, clique em **Publicar** e publique.
 ::: danger A pegadinha mais comum
 Sem publicar, **os comentários não chegam**. As mensagens de direct até chegam, o que confunde. Publicar não exige análise da Meta para usar na sua própria conta.
 :::
+
+O app do WhatsApp é o contrário: fica **sem publicar**. Por isso são dois apps.
 
 <!-- PRINT: botão "Publicar" no menu lateral do app e a confirmação de app publicado -->
 <Print>Botão "Publicar" no menu lateral do app e a confirmação de app publicado.</Print>

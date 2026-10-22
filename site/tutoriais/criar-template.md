@@ -1,10 +1,8 @@
 # Criar um template
 
-::: info Recurso novo, em construção
-Parte do canal WhatsApp, que chega numa próxima versão. Nomes podem mudar até o lançamento.
-:::
-
 Template é uma mensagem com texto fixo que a Meta aprova antes do uso. É o único jeito de iniciar conversa no WhatsApp com quem não te mandou mensagem nas últimas 24 horas. Transmissões e a [ponte do Instagram](./ponte-ig-wa) usam templates.
+
+Template é mensagem iniciada pela empresa, e a Meta cobra por ela. Sem **forma de pagamento** cadastrada na conta do WhatsApp, o template não sai. Veja [Cadastre o cartão](./conectar-whatsapp#_3-cadastre-o-cartao).
 
 ::: v-pre
 
