@@ -43,18 +43,17 @@ Gerar um token novo invalida o anterior. **Revogar** apaga o token e quem usava 
 
 ## O que o Claude pode e não pode fazer
 
-Pode ler resultados, fluxos, leads, templates e transmissões; criar e editar fluxos, gatilhos e etiquetas; enviar template pra aprovação da Meta; preparar transmissão como rascunho.
+Pode ler resultados, fluxos, leads, templates e transmissões; criar e editar fluxos, gatilhos e etiquetas; enviar template pra aprovação da Meta; preparar transmissão como rascunho e mostrar a prévia.
 
 Fluxo criado por conversa nasce **desligado** e abre organizado no editor visual. O Claude manda o link do editor e pergunta se pode ligar.
 
-Disparar uma transmissão manda mensagem pra gente de verdade e custa dinheiro, então é em duas etapas:
+Transmissão manda mensagem pra gente de verdade e custa dinheiro, então **o Claude não dispara**. Ele cria o rascunho e te mostra a prévia: quantas pessoas, qual template, custo estimado, quantos ficam de fora por terem pedido SAIR e se cabe no limite de 24h. Junto vem o link da transmissão no painel. Você confere lá e aperta **Disparar**.
 
-1. O Claude pede a prévia: quantas pessoas, qual template, custo estimado, se cabe no limite de 24h. **Nada é enviado.**
-2. Ele te mostra a prévia. Só com o seu "sim" ele chama de novo com o código de confirmação (vale 10 minutos, uma vez). Se o público cresceu desde a prévia, ele precisa pedir outra.
+É de propósito: o Claude lê mensagens de leads, e um texto malicioso poderia tentar convencer ele a enviar. Como não existe ferramenta que envie, não tem o que convencer.
 
 O envio segue as mesmas regras do painel: só quem deu consentimento, quem pediu SAIR fica de fora, ritmo, limite diário e pausas pedidas pela Meta.
 
-Não pode: ver tokens ou senhas, mudar as credenciais da Meta, apagar a conta ou leads.
+Não pode: disparar transmissão, ver tokens ou senhas, mudar as credenciais da Meta, apagar a conta ou leads.
 
 ## Segurança
 

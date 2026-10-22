@@ -17,12 +17,12 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
   `ver_transmissao`, `estado_da_conta`, `criar_fluxo` (passos simples compilados no
   grafo do editor, nasce desligado), `editar_mensagem_do_fluxo`, `ligar_desligar_fluxo`,
   `adicionar_gatilho`, `etiquetar_lead`, `criar_template_whatsapp`,
-  `criar_transmissao` (rascunho) e `disparar_transmissao` (prévia + código de
-  confirmação). Prompt `montar_fluxo_de_lancamento`.
+  `criar_transmissao` (rascunho) e `preparar_disparo` (prévia + link do painel; não
+  envia). Prompt `montar_fluxo_de_lancamento`.
 - Cada chamada vira o evento `mcp_ferramenta` (nome e resultado, sem conteúdo).
   Limite por minuto por acesso e trava por IP depois de falhas de autenticação.
-- Transmissão em **rascunho**: não sai até ser disparada (pelo Claude, com
-  confirmação, ou pelo botão Disparar no painel).
+- Transmissão em **rascunho**: só sai pelo botão Disparar no painel. O Claude não
+  tem ferramenta que envie, então texto de lead não consegue induzir um disparo.
 
 ### Corrigido
 - Fluxo criado por script com nó sem `position` quebrava o editor (o canvas ficava no

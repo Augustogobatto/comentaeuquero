@@ -1540,6 +1540,15 @@ def contar_publico(account_id, publico_: dict) -> int:
     return conn().execute(sql, args).fetchone()[0]
 
 
+def contar_saidas_publico(account_id, publico_: dict) -> int:
+    """Quem cairia no público mas pediu pra sair (fica de fora do envio)."""
+    args = [account_id]
+    sql = ("SELECT COUNT(*) FROM leads l WHERE l.account_id=? AND COALESCE(l.wa_id,'')<>'' "
+           "AND COALESCE(l.wa_optout_em,'')<>''")
+    sql += _filtro_publico(publico_, args)
+    return conn().execute(sql, args).fetchone()[0]
+
+
 def _transmissao_row(r) -> dict:
     d = dict(r)
     d["variaveis"] = json.loads(d.get("variaveis") or "{}")

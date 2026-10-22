@@ -1,5 +1,5 @@
-"""Servidor MCP: autenticação (token manual e OAuth), cada ferramenta, disparo em
-duas etapas, limites e registro. Nada sai pra Meta: o WhatsApp é dublado."""
+"""Servidor MCP: autenticação (token manual e OAuth), cada ferramenta, prévia de
+disparo (que nunca envia), limites e registro. Nada sai pra Meta: o WhatsApp é dublado."""
 import base64
 import hashlib
 import json
@@ -24,7 +24,6 @@ URL = "http://localhost:8080"
 @pytest.fixture(autouse=True)
 def _limpo():
     mcp_server._USO.clear()
-    F._CODIGOS.clear()
     db.conn().execute("DELETE FROM mcp_tokens")
     db.conn().execute("DELETE FROM mcp_clientes")
     db.conn().commit()
@@ -307,12 +306,12 @@ def test_lista_de_ferramentas_e_esquemas_estritos(conta_ig, token):
                      "listar_templates_whatsapp", "listar_transmissoes", "ver_transmissao",
                      "estado_da_conta", "criar_fluxo", "editar_mensagem_do_fluxo",
                      "ligar_desligar_fluxo", "adicionar_gatilho", "etiquetar_lead",
-                     "criar_template_whatsapp", "criar_transmissao", "disparar_transmissao"}
+                     "criar_template_whatsapp", "criar_transmissao", "preparar_disparo"}
     for t in ferramentas:
         assert t.input_schema.get("additionalProperties") is False, t.name
         assert t.description, t.name
-    disparar = next(t for t in ferramentas if t.name == "disparar_transmissao")
-    assert disparar.annotations.destructive_hint is True
+    assert not any(t.annotations.destructive_hint for t in ferramentas)
+    assert next(t for t in ferramentas if t.name == "preparar_disparo").annotations.read_only_hint is True
     assert next(t for t in ferramentas if t.name == "resumo").annotations.read_only_hint is True
     assert [p.name for p in prompts] == ["montar_fluxo_de_lancamento"]
     r = _chama(token, "listar_fluxos", {"inventado": 1})
@@ -479,9 +478,13 @@ def test_templates_e_criar_template(conta_wa, meta_wa):
         F.criar_template_whatsapp("outro", "UTILITY", "Oi {{1}}", [])
 
 
-def test_transmissao_rascunho_nao_sai_e_disparo_em_duas_etapas(conta_wa, meta_wa):
+def test_transmissao_rascunho_e_previa_que_nunca_envia(conta_wa, meta_wa):
     _template(conta_wa)
     _optin(conta_wa, 3, "comprador")
+    _optin(conta_wa, 1, "comprador")
+    saiu = db.conn().execute("SELECT MAX(id) FROM leads WHERE account_id=?", (conta_wa["id"],)).fetchone()[0]
+    db.registrar_optout(saiu)
+    _optin(conta_wa, 2, "outra")
     with pytest.raises(F.ErroFerramenta, match="faltou valor"):
         F.criar_transmissao("BF", "black", "etiqueta", "comprador")
     r = F.criar_transmissao("BF", "black", "etiqueta", "comprador", variaveis={"1": "{primeiro_nome}"})
@@ -492,38 +495,37 @@ def test_transmissao_rascunho_nao_sai_e_disparo_em_duas_etapas(conta_wa, meta_wa
     assert db.get_transmissao(tid)["status"] == "rascunho" and not meta_wa.chamadas
     assert F.listar_transmissoes()["transmissoes"][0]["status"] == "rascunho"
     assert F.ver_transmissao(tid)["publico_previsto_agora"] == 3
-    previa = F.disparar_transmissao(tid, quem="manual")
-    assert previa["etapa"] == "previa" and previa["pessoas"] == 3
+    for _ in range(3):
+        previa = F.preparar_disparo(tid)
+    assert previa["nada_foi_enviado"] is True and previa["pessoas"] == 3
+    assert previa["fora_por_pedir_pra_sair"] == 1
+    assert previa["template"] == "black" and "Oi {{1}}" in previa["texto_do_template"]
     assert previa["custo_estimado_usd"] == round(3 * transmissao.preco("marketing"), 2)
-    assert "Oi {{1}}" in previa["texto_do_template"]
-    assert db.get_transmissao(tid)["status"] == "rascunho"
-    with pytest.raises(F.ErroFerramenta, match="inválido"):
-        F.disparar_transmissao(tid, "ZZZZZZ", quem="manual")
-    # código de outro acesso não vale
-    with pytest.raises(F.ErroFerramenta, match="inválido"):
-        F.disparar_transmissao(tid, previa["codigo_confirmacao"], quem="outro-cliente")
-    previa = F.disparar_transmissao(tid, quem="manual")
-    # público cresceu depois da prévia: pede prévia nova
-    _optin(conta_wa, 1, "comprador")
-    with pytest.raises(F.ErroFerramenta, match="cresceu"):
-        F.disparar_transmissao(tid, previa["codigo_confirmacao"], quem="manual")
-    previa = F.disparar_transmissao(tid, quem="manual")
-    ok = F.disparar_transmissao(tid, previa["codigo_confirmacao"], quem="manual")
-    assert ok["etapa"] == "disparada" and db.get_transmissao(tid)["status"] == "agendada"
-    with pytest.raises(F.ErroFerramenta, match="só rascunho"):
-        F.disparar_transmissao(tid, previa["codigo_confirmacao"], quem="manual")
+    assert previa["link_no_painel"].endswith(f"/transmissoes/{tid}")
+    assert not any(k.startswith("codigo") for k in previa)
     transmissao.tick(agora=2000.0)
-    assert db.get_transmissao(tid)["status"] == "enviando" and meta_wa.chamadas
+    assert db.get_transmissao(tid)["status"] == "rascunho" and not meta_wa.chamadas
+    db.set_status_transmissao(tid, "agendada")
+    with pytest.raises(F.ErroFerramenta, match="só rascunho"):
+        F.preparar_disparo(tid)
 
 
-def test_codigo_de_confirmacao_vence(conta_wa, meta_wa, monkeypatch):
+def test_mcp_nao_dispara_com_nenhum_argumento(conta_wa, meta_wa, token):
     _template(conta_wa)
-    _optin(conta_wa, 1, "v")
+    _optin(conta_wa, 2, "v")
     tid = F.criar_transmissao("T", "black", "etiqueta", "v", variaveis={"1": "x"})["id"]
-    previa = F.disparar_transmissao(tid, quem="manual")
-    F._CODIGOS[previa["codigo_confirmacao"]]["expira"] = 0
-    with pytest.raises(F.ErroFerramenta, match="vencido"):
-        F.disparar_transmissao(tid, previa["codigo_confirmacao"], quem="manual")
+    ok = _chama(token, "preparar_disparo", {"transmissao_id": tid})
+    assert not ok.is_error and ok.structured_content["pessoas"] == 2
+    tentativas = [{"transmissao_id": tid, "codigo_confirmacao": "A1B2C3"},
+                  {"transmissao_id": tid, "confirmar": True},
+                  {"transmissao_id": tid, "enviar": "sim"}]
+    for args in tentativas:
+        assert _chama(token, "preparar_disparo", args).is_error, args
+    assert _chama(token, "disparar_transmissao", {"transmissao_id": tid}).is_error
+    transmissao.tick(agora=1000.0)
+    assert db.get_transmissao(tid)["status"] == "rascunho" and not meta_wa.chamadas
+    assert not [e for e in db.conn().execute(
+        "SELECT 1 FROM events WHERE kind='wa_transmissao_disparada'")]
 
 
 def test_transmissao_template_nao_aprovado(conta_wa):
@@ -538,8 +540,11 @@ def test_painel_dispara_rascunho(logado, meta_wa):
     _optin(conta, 1, "p")
     tid = F.criar_transmissao("T", "black", "etiqueta", "p", variaveis={"1": "x"})["id"]
     assert "Disparar" in logado.get(f"/transmissoes/{tid}").text
+    assert F.preparar_disparo(tid)["link_no_painel"].endswith(f"/transmissoes/{tid}")
     logado.post(f"/transmissoes/{tid}/disparar")
     assert db.get_transmissao(tid)["status"] == "agendada"
+    transmissao.tick(agora=1000.0)
+    assert db.get_transmissao(tid)["status"] == "enviando" and meta_wa.chamadas
 
 
 # ---------- editor: fluxo sem position ----------

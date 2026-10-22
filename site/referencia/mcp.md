@@ -12,7 +12,7 @@ Servidor MCP nativo da instância. Para conectar, veja o [tutorial](/tutoriais/c
 | Metadados | `/.well-known/oauth-protected-resource/mcp` e `/.well-known/oauth-authorization-server` |
 | Rotas OAuth | `/authorize`, `/token`, `/register`, `/revoke`, tela `/mcp/autorizar` |
 | Retorno do OAuth | Só `claude.ai`, `claude.com` (e subdomínios) e `localhost`. Outro cliente: `CEQ_MCP_REDIRECTS=host1,host2` no `.env` |
-| Limites | 120 leituras, 30 escritas e 10 disparos por minuto por acesso; IP com 30 falhas de autenticação em 10 min espera 10 min |
+| Limites | 120 leituras e 30 escritas por minuto por acesso; IP com 30 falhas de autenticação em 10 min espera 10 min |
 
 ::: v-pre
 
@@ -28,6 +28,7 @@ Servidor MCP nativo da instância. Para conectar, veja o [tutorial](/tutoriais/c
 | `listar_templates_whatsapp` | `sincronizar`, `so_aprovados` | Templates com status, categoria, corpo, variáveis e botões |
 | `listar_transmissoes` | nenhum | Status e funil de cada transmissão |
 | `ver_transmissao` | `transmissao_id` | Relatório completo e público previsto agora |
+| `preparar_disparo` | `transmissao_id` | Prévia de um rascunho: pessoas, template, custo estimado, limite de 24h, quantos ficam de fora por SAIR e o link no painel. Não envia: quem dispara é o usuário, no botão Disparar |
 | `estado_da_conta` | nenhum | Instagram e validade do token, chave da Meta configurada (sim/não), ritmo, pausa da Meta, WhatsApp (número, qualidade, limite) |
 
 ## Escrita
@@ -41,7 +42,6 @@ Servidor MCP nativo da instância. Para conectar, veja o [tutorial](/tutoriais/c
 | `etiquetar_lead` | `lead_id`, `adicionar`, `remover` | |
 | `criar_template_whatsapp` | `nome`, `categoria` (MARKETING, UTILITY), `corpo`, `exemplos`, `botoes`, `idioma` | Envia pra aprovação da Meta |
 | `criar_transmissao` | `nome`, `template`, `publico_tipo` (todos, etiqueta, campo), `publico_valor`, `campo_valor`, `variaveis` {"1": "{primeiro_nome}"}, `ritmo_por_minuto`, `agendar_para` | Cria **rascunho**: nada é enviado |
-| `disparar_transmissao` | `transmissao_id`, `codigo_confirmacao` | Sem código: prévia + código (10 min, uso único, do mesmo acesso). Com código: vira agendada e o envio segue as regras de sempre |
 
 ### Passos do `criar_fluxo`
 

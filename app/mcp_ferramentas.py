@@ -10,14 +10,12 @@ Regras que valem pra todas:
   - nada apaga conta, troca credencial ou mexe em configuração;
   - URL que entra aqui nunca é buscada pelo servidor (sem passo de webhook ou mídia):
     link só vai dentro de mensagem, e quem abre é a pessoa no celular;
-  - o que manda mensagem pra gente de verdade (transmissão) só sai em duas etapas,
-    com código de confirmação.
+  - nenhuma envia transmissão: o Claude só prepara o rascunho e a prévia, e quem
+    dispara é a pessoa, no botão Disparar do painel. Texto de lead pode tentar
+    mandar o modelo disparar; sem ferramenta pra isso, não tem o que enganar.
 """
 import datetime as _dt
 import re
-import secrets
-import threading
-import time
 from typing import Literal
 
 from fastapi import HTTPException
@@ -755,20 +753,15 @@ def criar_transmissao(nome: str, template: str, publico_tipo: str = "todos", pub
         "transmissao_id": tid, "publico": publico, "rascunho": True,
         "total": db.contar_publico(conta["id"], publico)})
     return {"id": tid, "status": "rascunho", "publico_previsto": db.contar_publico(conta["id"], publico),
-            "obs": "Rascunho criado: nada foi enviado. Pra enviar, use disparar_transmissao "
-                   "(ela mostra a prévia e pede confirmação) ou o botão Disparar no painel."}
+            "obs": "Rascunho criado: nada foi enviado. Use preparar_disparo pra ver a prévia "
+                   "e o link; quem envia é o usuário, no botão Disparar do painel."}
 
 
-# ---------- disparo em duas etapas ----------
+# ---------- prévia do disparo ----------
 #
-# A primeira chamada devolve a prévia e um código curto; só a segunda, com o código,
-# muda a transmissão de rascunho pra agendada (aí o worker de sempre envia, com
-# opt-out, ritmo, teto diário e freio da Meta). O código vale 10 minutos, uma vez,
-# pra aquela transmissão e aquele acesso, e cai se o público crescer depois da prévia.
-
-VALIDADE_CODIGO_S = 600
-_CODIGOS: dict[str, dict] = {}
-_CODIGOS_LOCK = threading.Lock()
+# Daqui nada sai: a prévia só lê. Rascunho vira agendada apenas pelo botão Disparar
+# do painel (POST /transmissoes/{id}/disparar, com login), e aí o worker de sempre
+# envia, com opt-out, ritmo, teto diário e freio da Meta.
 
 
 def _preview(conta, t) -> dict:
@@ -792,42 +785,21 @@ def _preview(conta, t) -> dict:
                    "pela tabela da Meta."}
 
 
-def disparar_transmissao(transmissao_id: int, codigo_confirmacao: str = "",
-                         quem: str = "") -> dict:
+def _url_transmissao(transmissao_id) -> str:
+    from .main import BASE_URL
+    return f"{BASE_URL}/transmissoes/{transmissao_id}" if BASE_URL else f"/transmissoes/{transmissao_id}"
+
+
+def preparar_disparo(transmissao_id: int) -> dict:
     conta = _conta_wa()
     t = _transmissao(conta, transmissao_id)
     if t["status"] != "rascunho":
-        raise ErroFerramenta(f"A transmissão está '{t['status']}': só rascunho pode ser disparado.")
-    agora = time.time()
-    with _CODIGOS_LOCK:
-        for k in [k for k, v in _CODIGOS.items() if v["expira"] < agora]:
-            _CODIGOS.pop(k, None)
-    if not codigo_confirmacao:
-        previa = _preview(conta, t)
-        if previa["pessoas"] == 0:
-            raise ErroFerramenta("O público dessa transmissão está vazio agora: ninguém receberia.")
-        codigo = secrets.token_hex(3).upper()
-        with _CODIGOS_LOCK:
-            _CODIGOS[codigo] = {"transmissao_id": t["id"], "quem": quem, "expira": agora + VALIDADE_CODIGO_S,
-                                "pessoas": previa["pessoas"]}
-        return {"etapa": "previa", "nada_foi_enviado": True, **previa,
-                "codigo_confirmacao": codigo, "valido_por_min": VALIDADE_CODIGO_S // 60,
-                "instrucao": "Mostre esta prévia ao usuário. Só chame disparar_transmissao de "
-                             "novo com este código se ele confirmar explicitamente."}
-    with _CODIGOS_LOCK:
-        pedido = _CODIGOS.pop(codigo_confirmacao.strip().upper(), None)
-    if (not pedido or pedido["expira"] < agora or pedido["transmissao_id"] != t["id"]
-            or pedido["quem"] != quem):
-        raise ErroFerramenta("Código de confirmação inválido ou vencido. Chame sem código "
-                             "pra gerar uma prévia nova.")
-    total = db.contar_publico(conta["id"], t["publico"])
-    if total > pedido["pessoas"]:
-        raise ErroFerramenta(f"O público cresceu desde a prévia ({pedido['pessoas']} → {total}). "
-                             "Gere uma prévia nova e confirme de novo.")
-    db.set_status_transmissao(t["id"], "agendada")
-    db.log_event("wa_transmissao_disparada", conta["id"],
-                 payload={"transmissao_id": t["id"], "total": total, "via": "mcp"})
-    return {"etapa": "disparada", "id": t["id"], "status": "agendada", "pessoas": total,
-            "obs": ("Começa no horário agendado." if t["agendada_para"] else
-                    "Começa em segundos, no ritmo configurado.") +
-                   " Acompanhe com ver_transmissao."}
+        raise ErroFerramenta(f"A transmissão está '{t['status']}': só rascunho pode ser preparado.")
+    previa = _preview(conta, t)
+    if previa["pessoas"] == 0:
+        raise ErroFerramenta("O público dessa transmissão está vazio agora: ninguém receberia.")
+    return {"nada_foi_enviado": True, "id": t["id"], **previa,
+            "fora_por_pedir_pra_sair": db.contar_saidas_publico(conta["id"], t["publico"]),
+            "link_no_painel": _url_transmissao(t["id"]),
+            "instrucao": "Mostre esta prévia e o link ao usuário. Pelo Claude não dá pra enviar: "
+                         "ele revisa no painel e aperta Disparar."}
