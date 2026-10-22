@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
-## [Não lançado] - 1.9.0
+## [1.9.0] - 2026-10-22
 
 ### Adicionado — Conectar ao Claude (MCP)
 - Servidor MCP nativo em `/mcp` (Streamable HTTP, SDK oficial `mcp` 2.3.0), no mesmo
@@ -35,6 +35,17 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
   prévia do texto. `listar_templates_whatsapp` (MCP) devolve a pasta e filtra por ela.
 - Erros da Meta na transmissão aparecem explicados em português, com o que fazer
   (131042 sem forma de pagamento, 131049, 131026, 132000...), código ao lado.
+
+### Adicionado — Transmissão por pessoa
+- Lista "Quem recebeu" na tela da transmissão: nome, número, situação (entregue, lida,
+  respondeu, sem confirmação de entrega, na fila, adiada, pulada, falhou) e horário,
+  com o erro da Meta explicado na linha. Filtros com contagem; a página se atualiza
+  sozinha enquanto envia.
+
+### Mudado
+- Painel com o visual do Blocos (tokens, barra lateral, componentes e modo escuro); o
+  editor de fluxos usa os mesmos tokens. O CSS ganha versão pelo conteúdo, então o
+  navegador não fica preso no visual antigo depois de atualizar.
 
 ### Corrigido
 - Template aprovado na Meta continuava "em análise" no CEQ até alguém clicar em
