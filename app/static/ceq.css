@@ -366,3 +366,26 @@ button.perigo:hover, .btn.perigo:hover { background: color-mix(in srgb, var(--er
 .chip-preset:hover { background: var(--texto-4); opacity: 1; }
 .chip-preset[aria-pressed="true"] { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
 .chip-preset[aria-pressed="true"] span { color: var(--fundo); opacity: .7; }
+
+/* ---- filtros com chips (Leads, Templates) ---- */
+.filtros { display: grid; gap: 12px; margin-bottom: 16px; }
+.busca { display: flex; gap: 8px; max-width: 520px; }
+.busca input[type=search] { margin-top: 0; flex: 1; }
+.busca button { margin-top: 0; }
+.filtro-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.rot-linha { font-size: 13px; color: var(--suave); font-weight: 500; margin-right: 4px; min-width: 84px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px;
+  border: 1px solid var(--linha); border-radius: 999px; font-size: 13px;
+  color: var(--texto); text-decoration: none; background: var(--fundo); transition: background .15s;
+}
+.chip:hover { background: var(--texto-4); text-decoration: none; }
+.chip.ligado { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
+.chip .n { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--suave); }
+.chip.ligado .n { color: var(--fundo); opacity: .7; }
+.achados { font-size: 13px; color: var(--suave); margin: 0 0 12px; }
+.achados a { margin-left: 6px; }
+button.chip { margin: 0; height: 28px; font-weight: 400; cursor: pointer; }
+button.chip:hover { opacity: 1; }
+button.chip.ligado:hover { background: var(--texto); }
+@media (max-width: 560px) { .rot-linha { min-width: 0; width: 100%; } }

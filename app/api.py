@@ -10,6 +10,7 @@ import csv
 import io
 import os
 import re
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
@@ -767,10 +768,18 @@ def _conta_wa_ou_erro():
     return conta
 
 
+def eh_amostra(nome) -> bool:
+    """Templates de exemplo que a Meta cria em toda conta nova (sample_* em 4 idiomas
+    e hello_world). Ninguém manda isso pra lead; a lista esconde por padrão."""
+    return (nome or "").startswith("sample_") or nome == "hello_world"
+
+
 def _template_publico(t) -> dict:
     return {"nome": t["nome"], "idioma": t["idioma"], "categoria": t["categoria"],
             "status": t["status"], "corpo": corpo_do_template(t),
-            "variaveis": variaveis_do_template(t), "botoes": botoes_do_template(t)}
+            "variaveis": variaveis_do_template(t), "botoes": botoes_do_template(t),
+            "pasta_id": t.get("pasta_id"), "pasta": t.get("pasta") or "",
+            "amostra": eh_amostra(t["nome"])}
 
 
 def sincronizar_templates(conta):
@@ -779,6 +788,31 @@ def sincronizar_templates(conta):
     if lista is None:
         return None
     return db.salvar_templates(conta["id"], lista)
+
+
+AUTOSYNC_INTERVALO = 60  # segundos entre sincronizações automáticas
+
+
+def sincronizar_se_pendente(conta) -> bool:
+    """Template criado aqui nasce PENDING e só vira APPROVED no banco depois de um
+    sync. Quem abre Templates ou Nova transmissão com algo em análise ganha um sync
+    antes, no máximo um a cada AUTOSYNC_INTERVALO (recarregar a página não martela a
+    Meta). O relógio anda mesmo se a Meta falhar. True se sincronizou."""
+    if not db.tem_template_pendente(conta["id"]):
+        return False
+    chave = f"wa_tpl_autosync:{conta['id']}"
+    agora = time.time()
+    try:
+        ultimo = float(db.get_ajuste(chave, "0"))
+    except ValueError:
+        ultimo = 0.0
+    if agora - ultimo < AUTOSYNC_INTERVALO:
+        return False
+    db.set_ajuste(chave, agora)
+    total = sincronizar_templates(conta)
+    db.log_event("wa_templates_sync", conta["id"], ok=total is not None,
+                 payload={"total": total, "auto": True})
+    return total is not None
 
 
 @router.get("/wa/templates")
@@ -797,6 +831,72 @@ def wa_templates_sync():
     if total is None:
         raise HTTPException(502, "a Meta não respondeu; os templates salvos foram mantidos")
     return {"total": total}
+
+
+# ---------- WhatsApp: pastas de template (só do CEQ, a Meta não tem) ----------
+
+class PastaIn(BaseModel):
+    nome: str
+
+
+def _nome_pasta(nome) -> str:
+    nome = " ".join((nome or "").split())
+    if not nome:
+        raise HTTPException(400, "dê um nome pra pasta")
+    if len(nome) > 60:
+        raise HTTPException(400, "nome de pasta com até 60 caracteres")
+    return nome
+
+
+@router.get("/wa/pastas")
+def wa_pastas():
+    conta = _conta_wa_ou_erro()
+    return db.listar_pastas(conta["id"])
+
+
+@router.post("/wa/pastas")
+def wa_pasta_criar(body: PastaIn):
+    conta = _conta_wa_ou_erro()
+    nome = _nome_pasta(body.nome)
+    pid = db.criar_pasta(conta["id"], nome)
+    if pid is None:
+        raise HTTPException(409, "já existe uma pasta com esse nome")
+    return {"id": pid, "nome": nome}
+
+
+@router.patch("/wa/pastas/{pasta_id}")
+def wa_pasta_renomear(pasta_id: int, body: PastaIn):
+    conta = _conta_wa_ou_erro()
+    if not db.get_pasta(conta["id"], pasta_id):
+        raise HTTPException(404, "pasta não encontrada")
+    nome = _nome_pasta(body.nome)
+    if not db.renomear_pasta(conta["id"], pasta_id, nome):
+        raise HTTPException(409, "já existe uma pasta com esse nome")
+    return {"id": pasta_id, "nome": nome}
+
+
+@router.delete("/wa/pastas/{pasta_id}")
+def wa_pasta_apagar(pasta_id: int):
+    conta = _conta_wa_ou_erro()
+    if not db.apagar_pasta(conta["id"], pasta_id):
+        raise HTTPException(404, "pasta não encontrada")
+    return {"ok": True}
+
+
+class MoverIn(BaseModel):
+    nome: str
+    idioma: str
+    pasta_id: int | None = None
+
+
+@router.put("/wa/templates/pasta")
+def wa_template_mover(body: MoverIn):
+    conta = _conta_wa_ou_erro()
+    if body.pasta_id is not None and not db.get_pasta(conta["id"], body.pasta_id):
+        raise HTTPException(404, "pasta não encontrada")
+    if not db.mover_template(conta["id"], body.nome, body.idioma, body.pasta_id):
+        raise HTTPException(404, "template não encontrado")
+    return {"ok": True}
 
 
 class TemplateIn(BaseModel):

@@ -373,14 +373,27 @@ def ver_lead(lead_id: int = 0, username: str = "") -> dict:
             "historico": historico, "fluxos": sessoes, "transmissoes": transm}
 
 
-def listar_templates_whatsapp(sincronizar: bool = False, so_aprovados: bool = False) -> dict:
+def listar_templates_whatsapp(sincronizar: bool = False, so_aprovados: bool = False,
+                              pasta: str = "") -> dict:
+    """pasta: nome da pasta (sem diferenciar maiúscula), "sem pasta" pros soltos, vazio = todas."""
     conta = _conta_wa()
     sinc = None
     if sincronizar:
         sinc = api.sincronizar_templates(conta)
         db.log_event("wa_templates_sync", conta["id"], ok=sinc is not None, payload={"total": sinc})
     lista = [api._template_publico(t) for t in db.listar_templates(conta["id"], so_aprovados)]
-    saida = {"templates": lista, "total": len(lista)}
+    pastas = [p["nome"] for p in db.listar_pastas(conta["id"])]
+    alvo = (pasta or "").strip().lower()
+    if alvo:
+        if alvo == "sem pasta":
+            lista = [t for t in lista if not t["pasta"]]
+        elif alvo in (p.lower() for p in pastas):
+            lista = [t for t in lista if t["pasta"].lower() == alvo]
+        else:
+            raise ErroFerramenta(f"Pasta '{pasta}' não existe. Pastas: {', '.join(pastas) or 'nenhuma'}.")
+    for t in lista:
+        t.pop("pasta_id", None)  # o id é do painel; pro Claude basta o nome
+    saida = {"templates": lista, "total": len(lista), "pastas": pastas}
     if sincronizar and sinc is None:
         saida["aviso"] = "A Meta não respondeu; mostrando a última lista salva."
     return saida
@@ -406,7 +419,7 @@ def listar_transmissoes() -> dict:
                       "template": t["template"], "criada_em": t["criado_em"],
                       "enviados": r["enviado"], "entregues": r["entregue"], "lidos": r["lido"],
                       "responderam": r["respondido"], "falharam": r["falhou"],
-                      "custo_estimado_usd": r["custo_usd"]})
+                      "custo_estimado_usd": r["custo_usd"], "custo_previsto_usd": r["custo_previsto_usd"]})
     return {"transmissoes": lista, "total": len(lista)}
 
 

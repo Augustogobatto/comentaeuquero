@@ -200,6 +200,16 @@ CREATE TABLE IF NOT EXISTS wa_templates (
     UNIQUE(account_id, nome, idioma)
 );
 
+-- Pastas pra organizar templates. A Meta não tem isso: é só do CEQ. O template aponta
+-- pra pasta em wa_templates.pasta_id; o upsert do sync não mexe nessa coluna.
+CREATE TABLE IF NOT EXISTS wa_template_pastas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+    nome TEXT NOT NULL,
+    criado_em TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    UNIQUE(account_id, nome)
+);
+
 -- Transmissão = template aprovado mandado pra um público com opt-in, numa fila com
 -- ritmo. Cada destinatário é uma linha em wa_envios, que guarda o funil dele.
 CREATE TABLE IF NOT EXISTS transmissoes (
@@ -332,6 +342,8 @@ def init():
         # 131056 adia só o destinatário, a fila da transmissão segue
         "ALTER TABLE wa_envios ADD COLUMN adiar_ate REAL DEFAULT 0",
         "ALTER TABLE wa_envios ADD COLUMN adiamentos INTEGER DEFAULT 0",
+        # pasta do template (1.9.0); NULL = sem pasta
+        "ALTER TABLE wa_templates ADD COLUMN pasta_id INTEGER",
         # índice depois dos ALTERs: em banco antigo a coluna wa_id só existe agora
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_wa ON leads(account_id, wa_id) "
         "WHERE wa_id <> ''",
@@ -1488,10 +1500,72 @@ def salvar_templates(account_id, lista) -> int:
 
 
 def listar_templates(account_id, so_aprovados=False) -> list:
-    q = "SELECT * FROM wa_templates WHERE account_id=?"
+    q = """SELECT t.*, COALESCE(p.nome, '') AS pasta FROM wa_templates t
+           LEFT JOIN wa_template_pastas p ON p.id=t.pasta_id WHERE t.account_id=?"""
     if so_aprovados:
-        q += " AND status='APPROVED'"
-    return [_template_row(r) for r in conn().execute(q + " ORDER BY nome, idioma", (account_id,))]
+        q += " AND t.status='APPROVED'"
+    return [_template_row(r) for r in conn().execute(q + " ORDER BY t.nome, t.idioma", (account_id,))]
+
+
+def listar_pastas(account_id) -> list:
+    """Pastas com quantos templates cada uma tem, em ordem alfabética."""
+    return [dict(r) for r in conn().execute(
+        """SELECT p.id, p.nome, COUNT(t.id) AS total FROM wa_template_pastas p
+           LEFT JOIN wa_templates t ON t.pasta_id=p.id
+           WHERE p.account_id=? GROUP BY p.id ORDER BY p.nome COLLATE NOCASE""",
+        (account_id,))]
+
+
+def get_pasta(account_id, pasta_id):
+    r = conn().execute("SELECT id, nome FROM wa_template_pastas WHERE account_id=? AND id=?",
+                       (account_id, pasta_id)).fetchone()
+    return dict(r) if r else None
+
+
+def criar_pasta(account_id, nome):
+    """id da pasta nova, ou None se já existe uma com esse nome."""
+    try:
+        cur = conn().execute("INSERT INTO wa_template_pastas (account_id, nome) VALUES (?,?)",
+                             (account_id, nome))
+    except sqlite3.IntegrityError:
+        conn().rollback()
+        return None
+    conn().commit()
+    return cur.lastrowid
+
+
+def renomear_pasta(account_id, pasta_id, nome) -> bool:
+    try:
+        cur = conn().execute("UPDATE wa_template_pastas SET nome=? WHERE account_id=? AND id=?",
+                             (nome, account_id, pasta_id))
+    except sqlite3.IntegrityError:
+        conn().rollback()
+        return False
+    conn().commit()
+    return cur.rowcount > 0
+
+
+def apagar_pasta(account_id, pasta_id) -> bool:
+    """Os templates da pasta voltam pra "sem pasta"; nada some da Meta."""
+    conn().execute("UPDATE wa_templates SET pasta_id=NULL WHERE account_id=? AND pasta_id=?",
+                   (account_id, pasta_id))
+    cur = conn().execute("DELETE FROM wa_template_pastas WHERE account_id=? AND id=?",
+                         (account_id, pasta_id))
+    conn().commit()
+    return cur.rowcount > 0
+
+
+def mover_template(account_id, nome, idioma, pasta_id) -> bool:
+    """pasta_id None tira da pasta. False se o template não existe."""
+    cur = conn().execute("UPDATE wa_templates SET pasta_id=? WHERE account_id=? AND nome=? AND idioma=?",
+                         (pasta_id, account_id, nome, idioma))
+    conn().commit()
+    return cur.rowcount > 0
+
+
+def tem_template_pendente(account_id) -> bool:
+    return conn().execute("SELECT 1 FROM wa_templates WHERE account_id=? AND status='PENDING' LIMIT 1",
+                          (account_id,)).fetchone() is not None
 
 
 def get_template(account_id, nome, idioma=None):

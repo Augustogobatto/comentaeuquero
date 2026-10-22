@@ -14,11 +14,17 @@
   <label>Nome <span class="sub">só pra você achar depois</span>
     <input type="text" name="nome" placeholder="Convite da live de quinta"></label>
 
-  <label>Template
-    <select name="template" id="template">
-      {% for t in templates_wa %}<option value="{{ t.nome }}|{{ t.idioma }}" data-cat="{{ t.categoria|lower }}"
-        data-vars="{{ t.variaveis|join(',') }}" data-corpo="{{ t.corpo }}">{{ t.nome }} ({{ t.idioma }}, {{ t.categoria|lower }})</option>{% endfor %}
-    </select></label>
+  {% set n_amostra = templates_wa|selectattr('amostra')|list|length %}
+  <label>Template <span class="sub">só os aprovados pela Meta, separados por pasta</span>
+    <input type="search" id="busca_tpl" placeholder="Procurar template" autocomplete="off"></label>
+  {% if n_amostra %}<label class="check" style="margin-top:8px;"><input type="checkbox" id="ver_amostras"{{ " checked" if n_amostra == templates_wa|length }}> mostrar os de exemplo da Meta (sample_*, hello_world)</label>{% endif %}
+  <select name="template" id="template" aria-label="Template" style="margin-top:8px;">
+    {% for nome_pasta, ts in grupos_tpl %}<optgroup label="{{ nome_pasta or 'Sem pasta' }}">
+      {% for t in ts %}<option value="{{ t.nome }}|{{ t.idioma }}" data-cat="{{ t.categoria|lower }}" data-amostra="{{ 1 if t.amostra else 0 }}"
+        data-vars="{{ t.variaveis|join(',') }}" data-corpo="{{ t.corpo }}">{{ t.nome }} ({{ t.idioma }}, {{ {'MARKETING': 'marketing', 'UTILITY': 'utilidade'}.get(t.categoria|upper, t.categoria|lower) }})</option>{% endfor %}
+    </optgroup>{% endfor %}
+  </select>
+  <p class="sub" id="sem_tpl" hidden>Nenhum template aprovado com essa busca.</p>
   <p class="msg" id="corpo" style="margin-top:12px;"></p>
   <div id="variaveis"></div>
 </div>
@@ -66,8 +72,30 @@
 const precos = {{ precos|tojson }}
 const $ = (id) => document.getElementById(id)
 const opcoes = ['{primeiro_nome}', '{name}', '{username}'{% for c in campos %}, {{ ('{' ~ c ~ '}')|tojson }}{% endfor %}]
+// busca e exemplos da Meta: remonta o <select> a partir da cópia original (Safari
+// ignora <option hidden>), sem <optgroup> vazio; se o escolhido sumiu, fica o primeiro
+const tplOriginal = $('template').cloneNode(true)
+function filtraTpl() {
+  const q = $('busca_tpl').value.trim().toLowerCase()
+  const amostras = $('ver_amostras') ? $('ver_amostras').checked : false
+  const antes = $('template').value
+  $('template').innerHTML = ''
+  for (const g of tplOriginal.querySelectorAll('optgroup')) {
+    const ok = [...g.querySelectorAll('option')].filter((o) => (amostras || o.dataset.amostra !== '1')
+      && (!q || (o.value + ' ' + o.dataset.corpo).toLowerCase().includes(q)))
+    if (!ok.length) continue
+    const ng = g.cloneNode(false)
+    for (const o of ok) ng.appendChild(o.cloneNode(true))
+    $('template').appendChild(ng)
+  }
+  const n = $('template').options.length
+  $('sem_tpl').hidden = n > 0
+  if (n && [...$('template').options].some((o) => o.value === antes)) $('template').value = antes
+  desenhaVars()
+}
 function desenhaVars() {
   const o = $('template').selectedOptions[0]
+  if (!o) { $('corpo').textContent = ''; $('variaveis').innerHTML = ''; return conta() }
   $('corpo').textContent = o.dataset.corpo
   $('variaveis').innerHTML = ''
   for (const v of (o.dataset.vars || '').split(',').filter(Boolean)) {
@@ -90,7 +118,7 @@ async function conta() {
   const r = await fetch('/api/wa/publico?' + q)
   total = r.ok ? (await r.json()).total : 0
   $('total').textContent = total
-  const cat = $('template').selectedOptions[0].dataset.cat
+  const cat = $('template').selectedOptions[0]?.dataset.cat
   $('custo').textContent = 'US$ ' + (total * (precos[cat] ?? precos.marketing)).toFixed(2)
 }
 for (const id of ['template', 'publico_tipo', 'sel_tag', 'sel_campo']) $(id).addEventListener('change', id === 'template' ? desenhaVars : conta)
@@ -98,7 +126,9 @@ $('campo_valor').addEventListener('input', conta)
 const dl = document.createElement('datalist'); dl.id = 'opcoes_var'
 for (const o of opcoes) { const op = document.createElement('option'); op.value = o; dl.appendChild(op) }
 document.body.appendChild(dl)
-desenhaVars()
+$('busca_tpl').addEventListener('input', filtraTpl)
+if ($('ver_amostras')) $('ver_amostras').addEventListener('change', filtraTpl)
+filtraTpl()
 </script>
 {% endif %}
 
@@ -124,8 +154,15 @@ desenhaVars()
     {% if r.revisar %}<div class="mini"><b class="num" style="color:var(--aviso);">{{ r.revisar }}</b><span>a revisar (envio interrompido, pode ter chegado)</span></div>{% endif %}
     <div class="mini"><b class="num">{{ r.pendente }}</b><span>pendentes</span></div>
   </div>
-  <p class="sub">Custo estimado: US$ {{ '%.2f'|format(r.custo_usd) }}{% if r.por_categoria %} ({% for c, n in r.por_categoria.items() %}{{ n }} {{ c }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Estimativa; o valor real vem na fatura da Meta.</p>
-  {% if r.erros %}<p class="sub">Erros da Meta: {% for c, n in r.erros.items() %}<code>{{ c }}</code> × {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  <p class="sub">Custo estimado: US$ {{ '%.2f'|format(r.custo_previsto_usd) }} ({{ r.previsto }} {{ t.categoria or 'marketing' }}){% if r.custo_usd or r.por_categoria %} · cobrado até agora: US$ {{ '%.2f'|format(r.custo_usd) }}{% if r.por_categoria %} ({% for c, n in r.por_categoria.items() %}{{ n }} {{ c }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}{% endif %}. Estimativa pela tabela da Meta; o valor real vem na fatura.</p>
+  {% if r.erros_explicados %}
+  <div class="erros-meta">
+    <h2>Por que falhou</h2>
+    {% for e in r.erros_explicados %}
+    <p><code>{{ e.codigo }}</code> × {{ e.n }} · {{ e.texto }} <span class="sub">{{ e.fazer }}</span></p>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
 
 {% if t.status in ('rascunho', 'agendada', 'enviando', 'pausada') %}
@@ -142,5 +179,8 @@ desenhaVars()
 .total-linha b { font-size: 26px; font-weight: 500; letter-spacing: -.02em; }
 .estado-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 input[type=datetime-local] { max-width: 280px; margin-top: 8px; }
+.erros-meta { margin-top: 24px; }
+.erros-meta p { font-size: 14px; margin: 8px 0; }
+.erros-meta .sub { display: block; margin-top: 2px; }
 </style>
 {% endblock %}

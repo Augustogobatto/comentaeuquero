@@ -23,6 +23,42 @@ from . import db, whatsapp
 # Meta muda o preço e não avisa o app. É sempre exibido como estimativa.
 PRECOS_PADRAO_USD = {"marketing": 0.0625, "utility": 0.0068, "authentication": 0.0068}
 
+# Erros da Meta que mais aparecem numa transmissão, em português e com o que fazer.
+# O código continua visível ao lado: é ele que o suporte da Meta pede.
+ERROS_META = {
+    131042: ("A conta do WhatsApp está sem forma de pagamento (ou o pagamento falhou).",
+             "Cadastre um cartão no Gerenciador do WhatsApp, em Cobrança, e dispare de novo."),
+    131047: ("A pessoa está fora da janela de 24h e a mensagem não era template.",
+             "Fora da janela só sai template aprovado."),
+    131026: ("O número não recebe esta mensagem: não tem WhatsApp, está com app antigo ou "
+             "não aceitou os termos novos.",
+             "Nada a fazer daqui; confira se o número está certo."),
+    131049: ("A Meta segurou a mensagem de marketing pra essa pessoa (ela já recebeu muito "
+             "marketing de várias empresas).",
+             "Não reenvie em seguida; tente outro dia ou com template de utilidade, se couber."),
+    131050: ("A pessoa pediu pra não receber marketing desta empresa.",
+             "Ela fica fora das próximas transmissões de marketing."),
+    132000: ("O número de variáveis enviado não bate com o template.",
+             "Confira os valores de {{1}}, {{2}}... da transmissão."),
+    132001: ("O template não existe na Meta com esse nome e idioma.",
+             "Sincronize os templates e confira se ele ainda está aprovado."),
+    131056: ("Muitas mensagens pro mesmo número em pouco tempo.",
+             "O CEQ adia esse envio sozinho; se persistir, diminua o ritmo."),
+    130472: ("O número está num experimento da Meta que não entrega marketing pra ele.",
+             "Nada a fazer; a Meta não cobra essa mensagem."),
+    368: ("A conta do WhatsApp está bloqueada ou restrita pela Meta.",
+          "Veja a qualidade e os avisos no Gerenciador do WhatsApp antes de disparar de novo."),
+    131031: ("A conta do WhatsApp está bloqueada ou restrita pela Meta.",
+             "Veja a qualidade e os avisos no Gerenciador do WhatsApp antes de disparar de novo."),
+}
+
+
+def explicar_erro(codigo) -> dict:
+    texto, fazer = ERROS_META.get(int(codigo), ("Erro da Meta sem explicação conhecida.",
+                                                "Procure o código na documentação da Cloud API."))
+    return {"codigo": int(codigo), "texto": texto, "fazer": fazer}
+
+
 # 131056 (par remetente-destinatário saturado) é do destinatário, não do número: ele
 # é adiado e a fila segue. Espera cresce a cada vez; passou do teto, vira falha.
 ADIAMENTO_BASE_S = 60
@@ -209,5 +245,18 @@ def relatorio(transmissao_id) -> dict:
         por_cat[r["cat"]] = r["n"]
         custo += r["n"] * preco(r["cat"])
     saida["por_categoria"] = por_cat
+    # custo_usd é o que a Meta já marcou como cobrável; o previsto usa a mesma conta do
+    # formulário (público × preço da categoria). Antes de disparar a fila ainda não
+    # existe, então o público é contado agora; depois, quem falhou ou foi pulado sai.
     saida["custo_usd"] = round(custo, 4)
+    if saida["total"]:
+        alvo = saida["total"] - saida["falhou"] - saida["pulado"]
+    elif t:
+        alvo = db.contar_publico(t["account_id"], t["publico"])
+    else:
+        alvo = 0
+    saida["previsto"] = alvo
+    saida["custo_previsto_usd"] = round(alvo * preco(t.get("categoria") or "marketing"), 4)
+    saida["erros_explicados"] = [{**explicar_erro(c), "n": n}
+                                 for c, n in sorted(saida["erros"].items(), key=lambda x: -x[1])]
     return saida

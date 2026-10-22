@@ -39,6 +39,18 @@ O painel lista os templates da sua conta, sincronizados com a Meta, com o estado
 
 ::: v-pre
 
+## Pastas e busca
+
+Com o tempo a lista cresce: a Meta já cria uns templates de exemplo em toda conta nova (`sample_*` e `hello_world`, em vários idiomas). Em **Templates**:
+
+- **Pastas:** clique em **Nova pasta** (ex.: Lançamento, Recuperação, Pós-venda) e escolha a pasta de cada template na coluna Pasta. A pasta é só do painel: a Meta não vê, e sincronizar não tira o template dela. Apagar uma pasta não apaga template nenhum, eles voltam para "sem pasta".
+- **Busca e filtros:** procure pelo nome ou por um pedaço do texto e filtre por pasta, status, categoria e idioma.
+- **Exemplos da Meta:** ficam escondidos. Marque "mostrar os templates de exemplo" se quiser ver.
+
+Na **Nova transmissão**, o seletor mostra só os aprovados, separados pela mesma pasta, com uma caixa de busca e a prévia do texto escolhido.
+
+Template em análise atualiza sozinho: ao abrir Templates ou Nova transmissão, o painel pergunta à Meta se já foi aprovado (no máximo uma vez por minuto). Para perguntar na hora, clique em **atualizar** ao lado do "em análise".
+
 ## Variáveis
 
 Na hora de usar o template (num fluxo ou numa transmissão), cada `{{1}}`, `{{2}}` é ligada a um campo do lead: `{{1}}` = primeiro nome, `{{2}}` = link do material.

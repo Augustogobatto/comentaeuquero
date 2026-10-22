@@ -1201,9 +1201,13 @@ def templates_wa_page(request: Request):
         return guard
     account = db.first_account()
     ativo = whatsapp.configurado(account)
-    lista = [api._template_publico(t) for t in db.listar_templates(account["id"])] if ativo else []
+    lista, pastas = [], []
+    if ativo:
+        api.sincronizar_se_pendente(account)  # quem acabou de ser aprovado já aparece
+        lista = [api._template_publico(t) for t in db.listar_templates(account["id"])]
+        pastas = db.listar_pastas(account["id"])
     return templates.TemplateResponse(request, "templates_wa.html", {
-        "account": account, "wa_configurado": ativo, "templates_wa": lista})
+        "account": account, "wa_configurado": ativo, "templates_wa": lista, "pastas": pastas})
 
 
 # ---------- WhatsApp: transmissões ----------
@@ -1266,12 +1270,21 @@ def transmissao_nova(request: Request):
     account = db.first_account()
     if not whatsapp.configurado(account):
         return _sem_wa(request)
+    api.sincronizar_se_pendente(account)  # sem isso, template recém-aprovado não aparece
     tpls = [api._template_publico(t) for t in db.listar_templates(account["id"], True)]
+    # um <optgroup> por pasta, na ordem das pastas; "Sem pasta" por último
+    grupos = {p["nome"]: [] for p in db.listar_pastas(account["id"])}
+    for t in tpls:
+        grupos.setdefault(t["pasta"], []).append(t)
+    grupos = [(nome, ts) for nome, ts in grupos.items() if ts and nome]
+    sem_pasta = [t for t in tpls if not t["pasta"]]
+    if sem_pasta:
+        grupos.append(("", sem_pasta))
     campos = [r["key"] for r in db.conn().execute(
         """SELECT DISTINCT f.key FROM lead_fields f JOIN leads l ON l.id=f.lead_id
            WHERE l.account_id=? ORDER BY f.key""", (account["id"],))]
     return templates.TemplateResponse(request, "transmissao.html", {
-        "account": account, "modo": "nova", "templates_wa": tpls,
+        "account": account, "modo": "nova", "templates_wa": tpls, "grupos_tpl": grupos,
         "tags": db.all_tags(account["id"]), "campos": campos,
         "limite_diario": transmissao.limite_diario(account),
         "enviados_24h": db.templates_enviados_24h(account["id"]),

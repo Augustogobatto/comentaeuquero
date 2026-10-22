@@ -16,23 +16,74 @@
   <button class="btn quieto" id="sincronizar">Sincronizar com a Meta</button>
 </div>
 
+{% set n_amostra = templates_wa|selectattr('amostra')|list|length %}
+<div class="filtros" id="filtros">
+  <div class="filtro-linha" id="linha-pastas">
+    <span class="rot-linha">Pasta</span>
+    <button type="button" class="chip ligado" data-f="pasta" data-v="*">todas <span class="n"></span></button>
+    {% for p in pastas %}<button type="button" class="chip" data-f="pasta" data-v="{{ p.id }}" data-nome="{{ p.nome }}">{{ p.nome }} <span class="n"></span></button>
+    {% endfor %}<button type="button" class="chip" data-f="pasta" data-v="">sem pasta <span class="n"></span></button>
+    <button type="button" class="btn quieto pequeno" id="nova-pasta">Nova pasta</button>
+    <span id="acoes-pasta" hidden>
+      <button type="button" class="btn quieto pequeno" id="renomear-pasta">Renomear</button>
+      <button type="button" class="btn perigo pequeno" id="apagar-pasta">Apagar pasta</button>
+    </span>
+  </div>
+  {% if templates_wa %}
+  <div class="busca"><input type="search" id="busca" placeholder="Procurar por nome ou texto" autocomplete="off"></div>
+  <div class="filtro-linha">
+    <span class="rot-linha">Status</span>
+    <button type="button" class="chip ligado" data-f="status" data-v="*">todos</button>
+    <button type="button" class="chip" data-f="status" data-v="APPROVED">aprovado</button>
+    <button type="button" class="chip" data-f="status" data-v="PENDING">em análise</button>
+    <button type="button" class="chip" data-f="status" data-v="REJECTED">recusado</button>
+  </div>
+  <div class="filtro-linha">
+    <span class="rot-linha">Categoria</span>
+    <button type="button" class="chip ligado" data-f="cat" data-v="*">todas</button>
+    <button type="button" class="chip" data-f="cat" data-v="MARKETING">marketing</button>
+    <button type="button" class="chip" data-f="cat" data-v="UTILITY">utilidade</button>
+  </div>
+  {% set idiomas = templates_wa|map(attribute='idioma')|unique|sort %}
+  {% if idiomas|length > 1 %}
+  <div class="filtro-linha">
+    <span class="rot-linha">Idioma</span>
+    <button type="button" class="chip ligado" data-f="idioma" data-v="*">todos</button>
+    {% for i in idiomas %}<button type="button" class="chip" data-f="idioma" data-v="{{ i }}">{{ i }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if n_amostra %}
+  <label class="check"><input type="checkbox" id="ver-amostras"> mostrar os {{ n_amostra }} templates de exemplo da Meta (sample_*, hello_world)</label>
+  {% endif %}
+  {% endif %}
+</div>
+
 {% if templates_wa %}
+  <p class="achados" id="achados"></p>
   <div class="twrap" style="margin-bottom:24px;">
-  <table class="tabela">
-    <thead><tr><th>Nome</th><th>Idioma</th><th>Categoria</th><th>Status</th><th>Texto</th></tr></thead>
+  <table class="tabela" id="lista">
+    <thead><tr><th>Nome</th><th>Idioma</th><th>Categoria</th><th>Status</th><th>Pasta</th><th>Texto</th></tr></thead>
     <tbody>
     {% for t in templates_wa %}
-      <tr>
+      <tr data-nome="{{ t.nome }}" data-idioma="{{ t.idioma }}" data-status="{{ t.status }}" data-cat="{{ t.categoria|upper }}"
+          data-pasta="{{ t.pasta_id or '' }}" data-amostra="{{ 1 if t.amostra else 0 }}" data-texto="{{ (t.nome ~ ' ' ~ t.corpo)|lower }}">
         <td><b>{{ t.nome }}</b></td>
         <td>{{ t.idioma }}</td>
-        <td>{{ t.categoria|lower }}</td>
-        <td><span class="tag {{ {'APPROVED': 'ok', 'PENDING': 'atencao', 'REJECTED': 'erro'}.get(t.status, '') }}"><span class="dot"></span>{{ {'APPROVED': 'aprovado', 'PENDING': 'em análise', 'REJECTED': 'recusado'}.get(t.status, t.status|lower) }}</span></td>
+        <td>{{ {'MARKETING': 'marketing', 'UTILITY': 'utilidade', 'AUTHENTICATION': 'autenticação'}.get(t.categoria|upper, t.categoria|lower) }}</td>
+        <td class="status"><span class="tag {{ {'APPROVED': 'ok', 'PENDING': 'atencao', 'REJECTED': 'erro'}.get(t.status, '') }}"><span class="dot"></span>{{ {'APPROVED': 'aprovado', 'PENDING': 'em análise', 'REJECTED': 'recusado'}.get(t.status, t.status|lower) }}</span>
+          {% if t.status == 'PENDING' %}<button type="button" class="atualizar" title="Perguntar à Meta se já foi aprovado">atualizar</button>{% endif %}</td>
+        <td><select class="mover" aria-label="Pasta de {{ t.nome }}">
+          <option value="">sem pasta</option>
+          {% for p in pastas %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.pasta_id }}>{{ p.nome }}</option>{% endfor %}
+        </select></td>
         <td class="sub">{{ t.corpo }}{% if t.botoes %} · botões: {{ t.botoes|join(', ') }}{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   </div>
+  <div class="vazio" id="nada" hidden style="margin-bottom:24px;"><p class="vazio-t">Nenhum template com esse filtro</p><p class="sub"><a href="#" id="limpar">Limpar filtros</a></p></div>
 {% else %}
   <div class="vazio" style="margin-bottom:24px;"><p class="vazio-t">Nenhum template ainda</p><p class="sub">Sincronize os que já existem na sua conta da Meta ou crie um abaixo.</p></div>
 {% endif %}
@@ -62,6 +113,15 @@
 .tabela td { vertical-align: top; }
 .tabela td.sub { white-space: normal; min-width: 280px; font-size: 14px; }
 .novo-tpl { max-width: 720px; }
+.tabela td.status { white-space: nowrap; }
+select.mover { margin-top: 0; height: 30px; padding: 0 8px; font-size: 13px; width: auto; max-width: 180px; }
+button.atualizar {
+  background: none; border: none; height: auto; padding: 2px 0; margin: 0 0 0 8px; font-size: 13px;
+  font-weight: 400; color: var(--suave); text-decoration: underline; text-underline-offset: 2px;
+}
+button.atualizar:hover { color: var(--texto); opacity: 1; }
+#linha-pastas .btn { margin-top: 0; }
+#acoes-pasta { display: inline-flex; gap: 6px; }
 </style>
 <script>
 const $ = (id) => document.getElementById(id)
@@ -87,9 +147,84 @@ function previa() {
 }
 $('corpo').addEventListener('input', desenha)
 $('botoes').addEventListener('input', previa)
-$('sincronizar').addEventListener('click', async () => {
+async function sincroniza() {
   const r = await fetch('/api/wa/templates/sync', { method: 'POST' })
   if (r.ok) location.reload(); else alert((await r.json()).detail || 'falhou')
+}
+$('sincronizar').addEventListener('click', sincroniza)
+for (const b of document.querySelectorAll('button.atualizar')) b.addEventListener('click', () => { b.disabled = true; sincroniza() })
+
+// ---- busca e filtros: tudo no navegador, a lista é pequena ----
+const filtro = { pasta: '*', status: '*', cat: '*', idioma: '*' }
+const linhas = [...document.querySelectorAll('#lista tbody tr')]
+const verAmostras = () => $('ver-amostras') ? $('ver-amostras').checked : false
+function filtra() {
+  const q = ($('busca') ? $('busca').value : '').trim().toLowerCase()
+  let n = 0
+  const porPasta = {}
+  for (const tr of linhas) {
+    const d = tr.dataset
+    if (d.amostra === '1' && !verAmostras()) { tr.hidden = true; continue }
+    porPasta[d.pasta] = (porPasta[d.pasta] || 0) + 1
+    porPasta['*'] = (porPasta['*'] || 0) + 1
+    const ok = (filtro.pasta === '*' || d.pasta === filtro.pasta)
+      && (filtro.status === '*' || d.status === filtro.status)
+      && (filtro.cat === '*' || d.cat === filtro.cat)
+      && (filtro.idioma === '*' || d.idioma === filtro.idioma)
+      && (!q || d.texto.includes(q))
+    tr.hidden = !ok
+    if (ok) n++
+  }
+  for (const c of document.querySelectorAll('#linha-pastas .chip')) c.querySelector('.n').textContent = porPasta[c.dataset.v] || 0
+  if ($('achados')) {
+    const escondidos = linhas.filter((tr) => tr.dataset.amostra === '1').length
+    $('achados').textContent = `${n} de ${porPasta['*'] || 0} template${porPasta['*'] === 1 ? '' : 's'}`
+      + (escondidos && !verAmostras() ? ` · ${escondidos} de exemplo da Meta escondidos` : '')
+    $('nada').hidden = n > 0 || !linhas.length
+    document.querySelector('.twrap').hidden = n === 0
+  }
+  const pasta = document.querySelector(`#linha-pastas .chip[data-v="${filtro.pasta}"]`)
+  $('acoes-pasta').hidden = !(pasta && pasta.dataset.nome)
+}
+for (const c of document.querySelectorAll('#filtros .chip')) c.addEventListener('click', () => {
+  filtro[c.dataset.f] = c.dataset.v
+  for (const o of document.querySelectorAll(`#filtros .chip[data-f="${c.dataset.f}"]`)) o.classList.toggle('ligado', o === c)
+  filtra()
+})
+if ($('busca')) $('busca').addEventListener('input', filtra)
+if ($('ver-amostras')) $('ver-amostras').addEventListener('change', filtra)
+if ($('limpar')) $('limpar').addEventListener('click', (e) => {
+  e.preventDefault(); $('busca').value = ''
+  for (const f of Object.keys(filtro)) document.querySelector(`#filtros .chip[data-f="${f}"][data-v="*"]`)?.click()
+})
+filtra()
+
+// ---- pastas: só no CEQ, a Meta não sabe delas ----
+async function chama(metodo, url, body) {
+  const r = await fetch(url, { method: metodo, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) })
+  if (!r.ok) { alert((await r.json()).detail || 'falhou'); return false }
+  return true
+}
+$('nova-pasta').addEventListener('click', async () => {
+  const nome = prompt('Nome da pasta (ex.: Lançamento, Recuperação, Pós-venda)')
+  if (nome && await chama('POST', '/api/wa/pastas', { nome })) location.reload()
+})
+$('renomear-pasta').addEventListener('click', async () => {
+  const c = document.querySelector('#linha-pastas .chip.ligado')
+  const nome = prompt('Novo nome da pasta', c.dataset.nome)
+  if (nome && nome !== c.dataset.nome && await chama('PATCH', `/api/wa/pastas/${c.dataset.v}`, { nome })) location.reload()
+})
+$('apagar-pasta').addEventListener('click', async () => {
+  const c = document.querySelector('#linha-pastas .chip.ligado')
+  if (confirm(`Apagar a pasta "${c.dataset.nome}"? Os templates dela vão pra "sem pasta"; nada muda na Meta.`)
+      && await chama('DELETE', `/api/wa/pastas/${c.dataset.v}`)) location.reload()
+})
+for (const s of document.querySelectorAll('select.mover')) s.addEventListener('change', async () => {
+  const tr = s.closest('tr')
+  const pasta_id = s.value ? Number(s.value) : null
+  if (await chama('PUT', '/api/wa/templates/pasta', { nome: tr.dataset.nome, idioma: tr.dataset.idioma, pasta_id })) {
+    tr.dataset.pasta = s.value; filtra()
+  }
 })
 $('criar').addEventListener('click', async () => {
   const body = {

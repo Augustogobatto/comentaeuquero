@@ -369,10 +369,13 @@ def ver_lead(lead_id: Annotated[int, Field(ge=0, le=2**31)] = 0,
 @_ferramenta("leitura", "Listar templates do WhatsApp")
 def listar_templates_whatsapp(
         sincronizar: Annotated[bool, Field(description="buscar a lista atualizada na Meta antes")] = False,
-        so_aprovados: bool = False) -> dict[str, Any]:
+        so_aprovados: bool = False,
+        pasta: Annotated[str, Field(description='nome da pasta, "sem pasta" pros soltos; vazio = todas')] = ""
+) -> dict[str, Any]:
     """Templates de mensagem do WhatsApp com status na Meta (APPROVED, PENDING,
-    REJECTED), categoria, texto, variáveis {{1}} e botões."""
-    return F.listar_templates_whatsapp(sincronizar, so_aprovados)
+    REJECTED), categoria, texto, variáveis {{1}}, botões e a pasta onde o usuário
+    guardou cada um no painel. `amostra` marca os de exemplo da Meta (sample_*)."""
+    return F.listar_templates_whatsapp(sincronizar, so_aprovados, pasta)
 
 
 @_ferramenta("leitura", "Listar transmissões")

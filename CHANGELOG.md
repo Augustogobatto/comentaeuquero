@@ -26,7 +26,24 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
 - Fluxo no ar fica com você: o Claude não liga nem desliga fluxo (manda o link do
   editor) e só edita mensagem ou gatilho de fluxo desligado e sem ninguém no meio.
 
+### Adicionado — Templates organizados
+- Pastas de template (criar, renomear, apagar, mover). Ficam só no CEQ, a Meta não tem
+  pasta; o sync não mexe nelas e apagar a pasta solta os templates em "sem pasta".
+- Busca por nome e texto e filtros por pasta, status, categoria e idioma em Templates.
+  Os de exemplo da Meta (`sample_*`, `hello_world`) ficam escondidos, com opção de mostrar.
+- Na nova transmissão, o seletor só traz aprovados, separados por pasta, com busca e
+  prévia do texto. `listar_templates_whatsapp` (MCP) devolve a pasta e filtra por ela.
+- Erros da Meta na transmissão aparecem explicados em português, com o que fazer
+  (131042 sem forma de pagamento, 131049, 131026, 132000...), código ao lado.
+
 ### Corrigido
+- Template aprovado na Meta continuava "em análise" no CEQ até alguém clicar em
+  Sincronizar, e não aparecia na transmissão. Templates e Nova transmissão sincronizam
+  sozinhas quando há template em análise (no máximo uma vez por minuto); a linha em
+  análise ganhou o link "atualizar".
+- O custo da transmissão recém-criada saía US$ 0.00 enquanto o formulário mostrava o
+  previsto: a página só somava o que a Meta já tinha cobrado. Agora mostra o mesmo
+  previsto do formulário e, separado, o cobrado até agora.
 - Fluxo criado por script com nó sem `position` quebrava o editor (o canvas ficava no
   fluxo anterior). O editor e a API dão posição automática da esquerda pra direita.
 
