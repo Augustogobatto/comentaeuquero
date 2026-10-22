@@ -15,16 +15,18 @@
     <input type="text" name="nome" placeholder="Convite da live de quinta"></label>
 
   {% set n_amostra = templates_wa|selectattr('amostra')|list|length %}
-  <label>Template <span class="sub">só os aprovados pela Meta, separados por pasta</span>
-    <input type="search" id="busca_tpl" placeholder="Procurar template" autocomplete="off"></label>
-  {% if n_amostra %}<label class="check" style="margin-top:8px;"><input type="checkbox" id="ver_amostras"{{ " checked" if n_amostra == templates_wa|length }}> mostrar os de exemplo da Meta (sample_*, hello_world)</label>{% endif %}
-  <select name="template" id="template" aria-label="Template" style="margin-top:8px;">
+  {# busca só quando a lista é grande; exemplos da Meta ficam atrás de um link #}
+  {% set n_proprios = templates_wa|length - n_amostra %}
+  <label for="template">Template <span class="sub">só os aprovados pela Meta, separados por pasta</span></label>
+  {% if n_proprios > 8 %}<input type="search" id="busca_tpl" placeholder="Procurar template" autocomplete="off" style="margin-bottom:8px;">{% endif %}
+  <select name="template" id="template" aria-label="Template" data-amostras="{{ 1 if n_amostra and not n_proprios else 0 }}">
     {% for nome_pasta, ts in grupos_tpl %}<optgroup label="{{ nome_pasta or 'Sem pasta' }}">
       {% for t in ts %}<option value="{{ t.nome }}|{{ t.idioma }}" data-cat="{{ t.categoria|lower }}" data-amostra="{{ 1 if t.amostra else 0 }}"
         data-vars="{{ t.variaveis|join(',') }}" data-corpo="{{ t.corpo }}">{{ t.nome }} ({{ t.idioma }}, {{ {'MARKETING': 'marketing', 'UTILITY': 'utilidade'}.get(t.categoria|upper, t.categoria|lower) }})</option>{% endfor %}
     </optgroup>{% endfor %}
   </select>
   <p class="sub" id="sem_tpl" hidden>Nenhum template aprovado com essa busca.</p>
+  {% if n_amostra and n_proprios %}<p class="sub" style="margin-top:8px;"><a href="#" id="ver_amostras"></a></p>{% endif %}
   <p class="msg" id="corpo" style="margin-top:12px;"></p>
   <div id="variaveis"></div>
 </div>
@@ -75,9 +77,10 @@ const opcoes = ['{primeiro_nome}', '{name}', '{username}'{% for c in campos %}, 
 // busca e exemplos da Meta: remonta o <select> a partir da cópia original (Safari
 // ignora <option hidden>), sem <optgroup> vazio; se o escolhido sumiu, fica o primeiro
 const tplOriginal = $('template').cloneNode(true)
+let amostras = $('template').dataset.amostras === '1'
 function filtraTpl() {
-  const q = $('busca_tpl').value.trim().toLowerCase()
-  const amostras = $('ver_amostras') ? $('ver_amostras').checked : false
+  const q = $('busca_tpl') ? $('busca_tpl').value.trim().toLowerCase() : ''
+  if ($('ver_amostras')) $('ver_amostras').textContent = amostras ? 'esconder os exemplos da Meta' : 'mostrar os exemplos da Meta'
   const antes = $('template').value
   $('template').innerHTML = ''
   for (const g of tplOriginal.querySelectorAll('optgroup')) {
@@ -126,8 +129,8 @@ $('campo_valor').addEventListener('input', conta)
 const dl = document.createElement('datalist'); dl.id = 'opcoes_var'
 for (const o of opcoes) { const op = document.createElement('option'); op.value = o; dl.appendChild(op) }
 document.body.appendChild(dl)
-$('busca_tpl').addEventListener('input', filtraTpl)
-if ($('ver_amostras')) $('ver_amostras').addEventListener('change', filtraTpl)
+if ($('busca_tpl')) $('busca_tpl').addEventListener('input', filtraTpl)
+if ($('ver_amostras')) $('ver_amostras').addEventListener('click', (e) => { e.preventDefault(); amostras = !amostras; filtraTpl() })
 filtraTpl()
 </script>
 {% endif %}

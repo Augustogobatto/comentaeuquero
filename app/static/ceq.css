@@ -384,7 +384,7 @@ button.perigo:hover, .btn.perigo:hover { background: color-mix(in srgb, var(--er
 .chip .n { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--suave); }
 .chip.ligado .n { color: var(--fundo); opacity: .7; }
 .achados { font-size: 13px; color: var(--suave); margin: 0 0 12px; }
-.achados a { margin-left: 6px; }
+.achados a { color: var(--texto); }
 button.chip { margin: 0; height: 28px; font-weight: 400; cursor: pointer; }
 button.chip:hover { opacity: 1; }
 button.chip.ligado:hover { background: var(--texto); }

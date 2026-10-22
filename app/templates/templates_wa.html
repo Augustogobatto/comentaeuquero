@@ -16,8 +16,10 @@
   <button class="btn quieto" id="sincronizar">Sincronizar com a Meta</button>
 </div>
 
-{% set n_amostra = templates_wa|selectattr('amostra')|list|length %}
 <div class="filtros" id="filtros">
+  {% if templates_wa %}
+  <div class="busca"><input type="search" id="busca" placeholder="Procurar por nome ou texto" autocomplete="off"></div>
+  {% endif %}
   <div class="filtro-linha" id="linha-pastas">
     <span class="rot-linha">Pasta</span>
     <button type="button" class="chip ligado" data-f="pasta" data-v="*">todas <span class="n"></span></button>
@@ -30,15 +32,15 @@
     </span>
   </div>
   {% if templates_wa %}
-  <div class="busca"><input type="search" id="busca" placeholder="Procurar por nome ou texto" autocomplete="off"></div>
-  <div class="filtro-linha">
+  {# linhas abaixo só aparecem quando têm o que separar (o JS esconde as de um valor só) #}
+  <div class="filtro-linha" data-linha="status">
     <span class="rot-linha">Status</span>
     <button type="button" class="chip ligado" data-f="status" data-v="*">todos</button>
     <button type="button" class="chip" data-f="status" data-v="APPROVED">aprovado</button>
     <button type="button" class="chip" data-f="status" data-v="PENDING">em análise</button>
     <button type="button" class="chip" data-f="status" data-v="REJECTED">recusado</button>
   </div>
-  <div class="filtro-linha">
+  <div class="filtro-linha" data-linha="cat">
     <span class="rot-linha">Categoria</span>
     <button type="button" class="chip ligado" data-f="cat" data-v="*">todas</button>
     <button type="button" class="chip" data-f="cat" data-v="MARKETING">marketing</button>
@@ -46,15 +48,12 @@
   </div>
   {% set idiomas = templates_wa|map(attribute='idioma')|unique|sort %}
   {% if idiomas|length > 1 %}
-  <div class="filtro-linha">
+  <div class="filtro-linha" data-linha="idioma">
     <span class="rot-linha">Idioma</span>
     <button type="button" class="chip ligado" data-f="idioma" data-v="*">todos</button>
     {% for i in idiomas %}<button type="button" class="chip" data-f="idioma" data-v="{{ i }}">{{ i }}</button>
     {% endfor %}
   </div>
-  {% endif %}
-  {% if n_amostra %}
-  <label class="check"><input type="checkbox" id="ver-amostras"> mostrar os {{ n_amostra }} templates de exemplo da Meta (sample_*, hello_world)</label>
   {% endif %}
   {% endif %}
 </div>
@@ -157,16 +156,19 @@ for (const b of document.querySelectorAll('button.atualizar')) b.addEventListene
 // ---- busca e filtros: tudo no navegador, a lista é pequena ----
 const filtro = { pasta: '*', status: '*', cat: '*', idioma: '*' }
 const linhas = [...document.querySelectorAll('#lista tbody tr')]
-const verAmostras = () => $('ver-amostras') ? $('ver-amostras').checked : false
+let amostras = false
+const verAmostras = () => amostras
 function filtra() {
   const q = ($('busca') ? $('busca').value : '').trim().toLowerCase()
   let n = 0
   const porPasta = {}
+  const valores = { status: new Set(), cat: new Set(), idioma: new Set() }
   for (const tr of linhas) {
     const d = tr.dataset
     if (d.amostra === '1' && !verAmostras()) { tr.hidden = true; continue }
     porPasta[d.pasta] = (porPasta[d.pasta] || 0) + 1
     porPasta['*'] = (porPasta['*'] || 0) + 1
+    valores.status.add(d.status); valores.cat.add(d.cat); valores.idioma.add(d.idioma)
     const ok = (filtro.pasta === '*' || d.pasta === filtro.pasta)
       && (filtro.status === '*' || d.status === filtro.status)
       && (filtro.cat === '*' || d.cat === filtro.cat)
@@ -176,10 +178,23 @@ function filtra() {
     if (ok) n++
   }
   for (const c of document.querySelectorAll('#linha-pastas .chip')) c.querySelector('.n').textContent = porPasta[c.dataset.v] || 0
+  // filtro com um valor só não filtra nada: some, a não ser que esteja em uso
+  for (const l of document.querySelectorAll('#filtros [data-linha]')) {
+    const f = l.dataset.linha
+    l.hidden = valores[f].size < 2 && filtro[f] === '*'
+    for (const c of l.querySelectorAll('.chip')) c.hidden = c.dataset.v !== '*' && !valores[f].has(c.dataset.v) && filtro[f] !== c.dataset.v
+  }
   if ($('achados')) {
     const escondidos = linhas.filter((tr) => tr.dataset.amostra === '1').length
-    $('achados').textContent = `${n} de ${porPasta['*'] || 0} template${porPasta['*'] === 1 ? '' : 's'}`
-      + (escondidos && !verAmostras() ? ` · ${escondidos} de exemplo da Meta escondidos` : '')
+    const total = porPasta['*'] || 0
+    $('achados').textContent = (n === total ? `${total}` : `${n} de ${total}`) + ` template${total === 1 ? '' : 's'}`
+    if (escondidos) {
+      const a = document.createElement('a')
+      a.href = '#'
+      a.textContent = amostras ? 'esconder os exemplos da Meta' : `mostrar ${escondidos} exemplos da Meta`
+      a.addEventListener('click', (e) => { e.preventDefault(); amostras = !amostras; filtra() })
+      $('achados').append(' · ', a)
+    }
     $('nada').hidden = n > 0 || !linhas.length
     document.querySelector('.twrap').hidden = n === 0
   }
@@ -192,7 +207,6 @@ for (const c of document.querySelectorAll('#filtros .chip')) c.addEventListener(
   filtra()
 })
 if ($('busca')) $('busca').addEventListener('input', filtra)
-if ($('ver-amostras')) $('ver-amostras').addEventListener('change', filtra)
 if ($('limpar')) $('limpar').addEventListener('click', (e) => {
   e.preventDefault(); $('busca').value = ''
   for (const f of Object.keys(filtro)) document.querySelector(`#filtros .chip[data-f="${f}"][data-v="*"]`)?.click()

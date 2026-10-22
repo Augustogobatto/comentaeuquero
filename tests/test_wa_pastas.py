@@ -64,7 +64,7 @@ def test_amostras_da_meta_marcadas_e_escondidas(conta_wa, logado, sem_cooldown):
     amostra = {t["nome"]: t["amostra"] for t in logado.get("/api/wa/templates").json()}
     assert amostra == {"promo": False, "sample_flight_confirmation": True, "hello_world": True}
     html = logado.get("/templates").text
-    assert 'data-amostra="1"' in html and "mostrar os 2 templates de exemplo" in html
+    assert 'data-amostra="1"' in html and 'exemplos da Meta' in html
     html = logado.get("/transmissoes/nova").text
     assert 'id="ver_amostras">' in html  # tem template próprio: amostras começam escondidas
 

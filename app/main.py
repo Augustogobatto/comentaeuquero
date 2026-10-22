@@ -197,6 +197,12 @@ def wa_ativo() -> bool:
 
 templates.env.globals["wa_ativo"] = wa_ativo
 
+# Versão do CSS pelo conteúdo: muda a cada deploy que mexe no arquivo, e o
+# navegador nunca fica preso num ceq.css velho do cache.
+_CSS = STATIC_DIR / "ceq.css"
+templates.env.globals["css_v"] = (hashlib.sha1(_CSS.read_bytes()).hexdigest()[:10]
+                                  if _CSS.exists() else "0")
+
 
 def wa_estado(account) -> dict:
     """Estado do número pro painel, pra /config e pra /api/wa/estado. Nunca leva
