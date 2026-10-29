@@ -18,14 +18,26 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
 ### Segurança — prompt injection no passo de IA
 - A instrução do dono do fluxo vai sozinha no `system` da chamada. Nome, @, texto
   recebido, campos salvos e qualquer outra `{variavel}` viram `[variavel]` na
-  instrução e o valor vai na mensagem de usuário, dentro de `<dados_do_lead>`, com
-  aviso no `system` de que aquilo é dado, nunca instrução, e de que as instruções
-  não podem ser reveladas.
-- `<`, `>` e `&` do texto da pessoa são escapados: escrever `</dados_do_lead>` não
-  fecha o bloco.
-- Teto de caracteres por campo enviado à IA: 1.500, ajustável em `CEQ_IA_MAX_CHARS`.
-- Resposta da IA que despeja as regras internas não é enviada; sai o texto reserva
-  (evento `ia_fallback`, motivo `saida_com_prompt`).
+  instrução e o valor vai à parte: o do lead na mensagem de usuário, dentro de
+  `<dados_do_lead>`, com aviso no `system` de que aquilo é dado, nunca instrução, e
+  de que as instruções não podem ser reveladas.
+- Origem decide o bloco: o que veio do dono (retorno de webhook, "definir campo" com
+  valor fixo ou montado só com dados do dono, na mesma sessão) vai em
+  `<dados_do_dono>` no `system`, sem teto e liberado pra preço e link; o resto (texto
+  recebido, nome, @, respostas, campo salvo de origem desconhecida) vai em
+  `<dados_do_lead>`. "Responda usando o catálogo: {resposta_api}" segue funcionando.
+- Texto não é mais escapado como HTML ("Ana & Bia" chegava como "Ana &amp; Bia" e a
+  IA ecoava a entidade): só o `<` que abriria ou fecharia `dados_do_lead`,
+  `dados_do_dono` ou `campo` (com espaço, hífen, caixa, `＜` ou `&lt;`) é trocado por `‹`.
+- Teto de caracteres por campo do lead enviado à IA: 1.500, ajustável em
+  `CEQ_IA_MAX_CHARS`; valor inválido ou <= 0 usa o padrão e avisa no log em vez de
+  derrubar o import (mesmo para `CEQ_IA_POR_LEAD_HORA`).
+- Resposta da IA que despeja as regras internas ou copia a instrução do dono (n-gramas
+  de 6 palavras cobrindo 40% da instrução ou 25 palavras seguidas; instrução com menos
+  de 12 palavras não é checada) não é enviada; sai o texto reserva (evento
+  `ia_fallback`, motivo `saida_com_prompt`). Tradução e paráfrase não são detectadas.
+- Resposta da IA não passa mais por `render()`: `{link}`, `{resposta_api}` etc. que o
+  lead induzir a IA a escrever saem literais. O texto reserva continua renderizado.
 - Prompt já salvo continua funcionando sem editar: a sintaxe `{variavel}` é a mesma.
 
 ## [1.9.0] - 2026-10-22
