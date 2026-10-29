@@ -3,6 +3,21 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [Unreleased]
+
+### Segurança — prompt injection no passo de IA
+- A instrução do dono do fluxo vai sozinha no `system` da chamada. Nome, @, texto
+  recebido, campos salvos e qualquer outra `{variavel}` viram `[variavel]` na
+  instrução e o valor vai na mensagem de usuário, dentro de `<dados_do_lead>`, com
+  aviso no `system` de que aquilo é dado, nunca instrução, e de que as instruções
+  não podem ser reveladas.
+- `<`, `>` e `&` do texto da pessoa são escapados: escrever `</dados_do_lead>` não
+  fecha o bloco.
+- Teto de caracteres por campo enviado à IA: 1.500, ajustável em `CEQ_IA_MAX_CHARS`.
+- Resposta da IA que despeja as regras internas não é enviada; sai o texto reserva
+  (evento `ia_fallback`, motivo `saida_com_prompt`).
+- Prompt já salvo continua funcionando sem editar: a sintaxe `{variavel}` é a mesma.
+
 ## [1.9.0] - 2026-10-22
 
 ### Adicionado — Conectar ao Claude (MCP)
