@@ -28,7 +28,8 @@ Antes de abrir, procure se já existe. Se existir, deixe um joinha na issue: é 
 
 | Upgrade | Estado |
 |---|---|
-| **Proteção contra prompt injection no passo de IA.** Separar a instrução do texto da pessoa para ela não conseguir mudar o comportamento da IA. | <Estado v="planejado" /> |
+| **Proteção contra prompt injection no passo de IA.** A instrução fica separada do texto da pessoa, que vai como dado e não muda o comportamento da IA. [Tutorial](/tutoriais/ia-no-fluxo). | <Estado v="andamento" /> |
+| **Palavra-chave casando plural e variações.** "livro" dispara em "livros", "quero" em "queroo"; a palavra escrita igual continua ganhando. | <Estado v="andamento" /> |
 | **Teste A/B de mensagem com resultado.** O passo Teste A/B já sorteia; falta comparar a conversão de cada lado no painel. | <Estado v="planejado" /> |
 | **Gatilho por webhook externo.** Começar um fluxo a partir de uma compra na Hotmart, um pagamento no Stripe ou qualquer sistema que mande um webhook. | <Estado v="planejado" /> |
 
@@ -59,4 +60,3 @@ Antes de abrir, procure se já existe. Se existir, deixe um joinha na issue: é 
 | **WhatsApp pela Cloud API oficial.** Conexão do número, fluxos por palavra-chave, ponte Instagram → WhatsApp, templates em pastas e transmissões com relatório por pessoa. [Tutorial](/tutoriais/conectar-whatsapp). | <Estado v="feito" /> |
 | **Conectar ao Claude (MCP).** Peça ao Claude pra montar fluxo, ver leads e preparar transmissão. Ele não liga fluxo nem dispara sozinho. [Tutorial](/tutoriais/conectar-claude). | <Estado v="feito" /> |
 | **Credenciais cifradas pelo painel**, sem precisar editar arquivo. | <Estado v="feito" /> |
-| **Palavra-chave casando plural e variações.** "livro" dispara em "livros", "quero" em "queroo"; a palavra escrita igual continua ganhando. | <Estado v="feito" /> |
