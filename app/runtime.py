@@ -579,9 +579,12 @@ IA_MAX_CHARS_CAMPO = _int_env("CEQ_IA_MAX_CHARS", 1500)
 
 # Dado do dono (retorno de webhook, campo fixo) tem teto próprio, maior: catálogo
 # cabe, mas um webhook que devolve 300 KB não vai inteiro em toda chamada de IA.
-# Quando corta, o motor grava o evento ia_dado_cortado: corte silencioso de
-# catálogo vira resposta errada sem ninguém saber por quê.
-IA_MAX_CHARS_DONO = _int_env("CEQ_IA_MAX_CHARS_DONO", 30000)
+# Teto por variável e teto do bloco <dados_do_dono> inteiro (as variáveis são
+# cortadas na ordem em que aparecem na instrução). Quando corta, o motor grava o
+# evento ia_dado_cortado (no máximo 1 por fluxo, nó e variável por hora): corte
+# silencioso de catálogo vira resposta errada sem ninguém saber por quê.
+IA_MAX_CHARS_DONO = _int_env("CEQ_IA_MAX_CHARS_DONO", 12000)
+IA_MAX_CHARS_DONO_TOTAL = _int_env("CEQ_IA_MAX_CHARS_DONO_TOTAL", 30000)
 
 # Marca das regras fixas. Se ela aparecer na saída, a IA está despejando o próprio
 # prompt: a resposta não sai e vai o texto reserva.
@@ -660,15 +663,36 @@ def _neutraliza_tags(v: str) -> str:
     return v
 
 
-def _dado_seguro(valor, teto=None) -> str:
-    """Texto pronto pra entrar entre as tags: tira caractere de controle, corta no
-    teto (padrão: o do lead) e neutraliza só o que abriria ou fecharia uma tag
-    delimitadora. O resto chega à IA como foi escrito: sem NFKC ("2ª via", "50 m²"
-    e "½" ficam iguais) e sem escapar HTML ("Ana & Bia" continua "Ana & Bia")."""
-    teto = IA_MAX_CHARS_CAMPO if teto is None else teto
+# Invisíveis usados pra contrabandear texto que a pessoa não vê e a IA lê: tag
+# characters (U+E0000–E007F), overrides/isolates bidi, zero width space, word
+# joiner e BOM. Exceção: bandeira de subdivisão (🏴 + 2 a 7 tags minúsculas/dígitos
+# + cancel tag, como a da Escócia) fica inteira. ZWJ (U+200D) não entra: é ele que
+# junta 👨‍👩‍👧.
+_CONTRABANDO = re.compile(
+    "(\U0001F3F4[\U000E0030-\U000E0039\U000E0061-\U000E007A]{2,7}\U000E007F)"
+    "|[\U000E0000-\U000E007F\u202A-\u202E\u2066-\u2069\u200B\u2060\uFEFF]")
+
+
+def _limpa_dado(valor) -> str:
+    """Tira controle e invisível de contrabando. É o texto que de fato vai pra IA
+    (antes do teto)."""
     v = str(valor or "")
     v = "".join(c for c in v if c in "\n\t" or ord(c) >= 32)
+    return _CONTRABANDO.sub(lambda m: m.group(1) or "", v)
+
+
+def _dado_seguro(valor, teto=None, cortes=None, nome=None) -> str:
+    """Texto pronto pra entrar entre as tags: tira caractere de controle e
+    invisível de contrabando, corta no teto (padrão: o do lead) e neutraliza só o
+    que abriria ou fecharia uma tag delimitadora. O resto chega à IA como foi
+    escrito: sem NFKC ("2ª via", "50 m²" e "½" ficam iguais) e sem escapar HTML
+    ("Ana & Bia" continua "Ana & Bia"). Se cortou e `cortes` foi passado, entra
+    nele (nome, tamanho depois da limpeza, teto)."""
+    teto = IA_MAX_CHARS_CAMPO if teto is None else teto
+    v = _limpa_dado(valor)
     if len(v) > teto:
+        if cortes is not None:
+            cortes.append((nome, len(v), teto))
         v = v[:teto] + "… [cortado]"
     return _neutraliza_tags(v)
 
@@ -710,8 +734,9 @@ def montar_prompt_ia(instrucao, lead, context, cortes=None):
     vai num bloco conforme a origem:
     - do dono (retorno de webhook do dono, "definir campo" com valor fixo ou que
       só cita variáveis do dono, nesta sessão): <dados_do_dono>, no system, como
-      dado de referência, com teto próprio (CEQ_IA_MAX_CHARS_DONO). Cada valor
-      cortado no teto entra em `cortes` como (nome, tamanho original);
+      dado de referência, com teto por variável (CEQ_IA_MAX_CHARS_DONO) e do
+      bloco inteiro (CEQ_IA_MAX_CHARS_DONO_TOTAL). Cada valor cortado entra em
+      `cortes` como (nome, tamanho depois da limpeza, teto aplicado);
     - do lead (texto recebido, nome, @, respostas, campo salvo de origem
       desconhecida): <dados_do_lead>, na mensagem de usuário, com teto.
     Nos dois só é neutralizado o que formaria uma tag delimitadora. Prompt já
@@ -735,12 +760,14 @@ def montar_prompt_ia(instrucao, lead, context, cortes=None):
     do_lead = [n for n in citados if n not in do_dono]
 
     system = corpo
-    if cortes is not None:
-        cortes.extend((n, len(str(valores[n]))) for n in do_dono
-                      if len(str(valores[n])) > IA_MAX_CHARS_DONO)
     if do_dono:
-        campos = "\n".join(f'<campo nome="{n}">{_dado_seguro(valores[n], IA_MAX_CHARS_DONO)}</campo>'
-                           for n in do_dono)
+        restante, linhas = IA_MAX_CHARS_DONO_TOTAL, []
+        for n in do_dono:
+            teto = min(IA_MAX_CHARS_DONO, restante)
+            valor = _dado_seguro(valores[n], teto, cortes, n)
+            restante = max(0, restante - min(len(_limpa_dado(valores[n])), teto))
+            linhas.append(f'<campo nome="{n}">{valor}</campo>')
+        campos = "\n".join(linhas)
         system += f"\n\n<dados_do_dono>\n{campos}\n</dados_do_dono>"
     system += f"\n\n{_IA_REGRAS}"
 
@@ -935,11 +962,17 @@ def _run(account, session_id, node_id, comment_id=None, limite_nos=40):
                 return "adiado_rate_limit"
             cortes = []
             texto, detalhe = _responde_ia(data, lead, session, cortes)
-            for nome, tamanho in cortes:
+            for nome, tamanho, teto in cortes:
+                # 1 por fluxo, nó e variável por hora: o mesmo catálogo grande
+                # cortado em toda conversa não pode encher a tabela de eventos
+                if db.evento_na_ultima_hora("ia_dado_cortado", account["id"], flow["name"],
+                                            {"node": node_id, "variavel": nome}):
+                    continue
                 db.log_event("ia_dado_cortado", account["id"], flow["name"], "ai", None,
                              lead.get("username", ""),
                              {"node": node_id, "variavel": nome, "tamanho": tamanho,
-                              "teto": IA_MAX_CHARS_DONO})
+                              "teto": teto, "teto_variavel": IA_MAX_CHARS_DONO,
+                              "teto_total": IA_MAX_CHARS_DONO_TOTAL})
             if detalhe != "ok":
                 db.log_event("ia_fallback", account["id"], flow["name"], "ai", None,
                              lead.get("username", ""),

@@ -564,6 +564,18 @@ def log_event(kind, account_id=None, rule_keyword="", source="", ok=None, who=""
     conn().commit()
 
 
+def evento_na_ultima_hora(kind, account_id, rule_keyword, campos: dict) -> bool:
+    """Já existe evento `kind` desta conta e fluxo na última hora com estes campos
+    no payload? Usado pra deduplicar aviso repetitivo."""
+    q = ("SELECT 1 FROM events WHERE account_id IS ? AND kind=? AND rule_keyword=? "
+         "AND ts >= ?")
+    args = [account_id, kind, rule_keyword, in_seconds_iso(-3600)]
+    for k, v in campos.items():
+        q += " AND json_extract(payload, ?) = ?"
+        args += [f"$.{k}", v]
+    return conn().execute(q + " LIMIT 1", args).fetchone() is not None
+
+
 def get_ajuste(chave, default=""):
     r = conn().execute("SELECT valor FROM ajustes WHERE chave=?", (chave,)).fetchone()
     return r["valor"] if r and r["valor"] else default
@@ -943,8 +955,13 @@ def _limpa_keywords(keywords) -> list:
     descartados (nunca viram "" pega-tudo). Se sobrar nenhuma palavra de uma lista
     que tinha alguma, é ValueError: lista vazia é "responde sempre", que casa até
     figurinha, e ninguém que digitou uma palavra quis isso."""
+    if keywords is None:
+        keywords = []
+    if not isinstance(keywords, (list, tuple)):
+        # "quero" iteraria letra a letra e viraria ['q','u','e','r','o']
+        raise ValueError("palavras-chave precisam vir numa lista")
     limpas = []
-    for bruto in keywords or []:
+    for bruto in keywords:
         if isinstance(bruto, bool) or not isinstance(bruto, (str, int, float)):
             continue
         bruto = bruto if isinstance(bruto, str) else str(bruto)

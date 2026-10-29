@@ -15,10 +15,13 @@ def tem_link(texto: str, link: str) -> bool:
     """O link já está no texto como URL inteira? Substring não basta:
     "https://loja.com/p" está dentro de "https://loja.com/promo-fake". Vale só se
     depois dele vier fim, espaço, ou pontuação de fim de frase seguida de fim ou
-    espaço ("veja https://loja.com/p." conta; ".../p.html" e ".../p/2" não)."""
+    espaço ("veja https://loja.com/p." conta; ".../p.html" e ".../p/2" não), e se
+    antes dele vier início, espaço ou pontuação de abertura, nunca caractere de
+    URL: em "https://golpe.com/?r=https://loja.com/p" o link é outro."""
     if not link:
         return False
-    padrao = re.escape(link) + r"""(?=[.,;:!?)\]}"'»”’…]*(?:\s|$))"""
+    padrao = (r"(?<![\w/=?&.:%#~+-])" + re.escape(link)
+              + r"""(?=[.,;:!?)\]}"'»”’…]*(?:\s|$))""")
     return re.search(padrao, texto or "") is not None
 
 
