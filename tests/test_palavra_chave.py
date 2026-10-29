@@ -187,9 +187,10 @@ def test_add_trigger_limpa_palavras_sem_mudar_significado():
     conta = _conta()
     f = db.create_flow(conta, name="limpa")
     db.add_trigger(f, "comment", keywords=["  Quero ", "Quero", "   ", ""])
-    assert db.list_triggers(f)[0]["keywords"] == ["Quero", ""]
-    assert _qual(conta, "oi") == "limpa"          # "" segue casando qualquer texto
-    assert _qual(conta, "🙏") is None             # ... com letra/número, como na v1.9.0
+    # 1.10.1: "" junto de palavra é descartado (sozinho segue como na v1.9.0)
+    assert db.list_triggers(f)[0]["keywords"] == ["Quero"]
+    assert _qual(conta, "oi") is None
+    assert _qual(conta, "quero") == "limpa"
 
 
 def test_gatilho_com_palavra_vazia_segue_disparando():

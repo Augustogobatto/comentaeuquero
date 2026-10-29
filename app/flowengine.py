@@ -84,10 +84,13 @@ def _desestica(t: str) -> tuple:
     a palavra-chave é como o dono escreveu, então "mall" não casa "mal" nem "free"
     casa "fre" (esticar só acrescenta letra, nunca tira).
       - 3+ iguais viram uma e a última letra dobrada também: "queeeroooo", "queroo"
-        -> "quero". Dobra no meio ("carro") fica.
+        -> "quero". Dobra no meio ("carro") fica, e a do fim só sai se sobrarem 4+
+        letras ("mall" não vira "mal"; "siiim" vira "sim" pelas 3+ iguais).
       - 3+ iguais viram duas: "freee" -> "free", "classs" -> "class"."""
     um = re.sub(r"([a-z])\1{2,}", r"\1", t)
-    if len(um) >= 4 and um[-1].isalpha() and um[-1] == um[-2]:
+    # a última dobrada só cai se sobrar palavra de 4+ letras: "mall", "bell" e
+    # "jazz" não viram "mal", "bel" e "jaz" (palavra curta só casa igual)
+    if len(um) >= 5 and um[-1].isalpha() and um[-1] == um[-2]:
         um = um[:-1]
     dois = re.sub(r"([a-z])\1{2,}", r"\1\1", t)
     return tuple({t, um, dois})
@@ -174,7 +177,8 @@ class _Texto:
 
 
 def _casa_legado(keyword: str, alvo: _Texto) -> int:
-    """Palavra-chave sem nenhuma letra ou número ("", "  ", "🙏", "!!"): regra da
+    """Palavra-chave sem nenhuma letra ou número ("", "  ", "🙏", "!!") ou com
+    símbolo (_SIMBOLOS: "c++", "R$", "100%"): regra da
     v1.9.0 sem mudar nada, pra gatilho salvo assim seguir disparando como antes.
     "" casa qualquer texto com ao menos uma letra/número; os demais só casam
     entre duas letras/números (\\b dos dois lados)."""
@@ -182,10 +186,24 @@ def _casa_legado(keyword: str, alvo: _Texto) -> int:
     return EXATO if re.search(padrao, alvo.normalizado()) else 0
 
 
+# Símbolo que a normalização apagaria mudando o sentido da palavra-chave: "c++"
+# viraria "c", "R$" viraria "r", "100%" casaria "R$100". Palavra-chave com um deles
+# casa pela regra da v1.9.0 (_casa_legado). Pontuação comum (espaço, hífen,
+# apóstrofo, ".,!?;:" e emoji) segue por palavras.
+_SIMBOLOS = frozenset("+$%#@&*/=\\^|~<>")
+
+
+@functools.lru_cache(maxsize=4096)
+def _tem_simbolo(keyword: str) -> bool:
+    import unicodedata
+    return any(c in _SIMBOLOS or unicodedata.category(c) in ("Sm", "Sc")
+               for c in keyword)
+
+
 def _casa(keyword: str, alvo: _Texto) -> int:
     keyword = keyword or ""
     kw = _tokens_kw(keyword)
-    if not kw:
+    if not kw or _tem_simbolo(keyword):
         return _casa_legado(keyword, alvo)
     if not alvo.toks:
         return 0
@@ -241,19 +259,22 @@ def match_trigger(account_id, tipo, texto, media_id=None):
          "responde sempre".
     Assim variação nunca rouba evento de um gatilho que casa exato.
     """
-    candidatos = []
+    primeiro = primeiro_exato = None
     alvo = _Texto(texto)      # tokeniza e indexa uma vez por evento
     for t in db.active_triggers(account_id, tipo):
         if t["media_ids"] and str(media_id or "") not in [str(m) for m in t["media_ids"]]:
             continue
         forca = _forca(t["keywords"], texto, alvo)
-        if forca:
-            candidatos.append((t, forca))
-    if not candidatos:
-        return None
-    if any(f == EXATO and t["keywords"] for t, f in candidatos):
-        return next(t for t, f in candidatos if f == EXATO)
-    return candidatos[0][0]
+        if not forca:
+            continue
+        primeiro = primeiro or t
+        if forca == EXATO:
+            primeiro_exato = primeiro_exato or t
+            if t["keywords"]:
+                # a regra 1 já decidiu: o vencedor é o primeiro exato (ou "responde
+                # sempre") até aqui, e nada que vier depois passa na frente dele
+                return primeiro_exato
+    return primeiro
 
 
 def _lead_de(account, igsid, username="", keyword=""):

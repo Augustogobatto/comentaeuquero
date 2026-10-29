@@ -972,6 +972,10 @@ def _limpa_keywords(keywords) -> list:
             limpas.append(k)
     if keywords and not limpas:
         raise ValueError("palavra-chave vazia: digite pelo menos uma palavra")
+    if len(limpas) > 1 and "" in limpas:
+        # "" junto de palavras viraria pega-tudo escondido atrás delas; sozinho
+        # continua valendo como na v1.9.0
+        limpas.remove("")
     return limpas
 
 

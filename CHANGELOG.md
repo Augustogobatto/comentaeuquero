@@ -3,6 +3,36 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [Unreleased]
+
+### Corrigido
+- Link do nó saía duplicado quando a mensagem já o trazia em forma comum:
+  "Acesse:https://...", "\*https://...\*", "\_https://...\_", "https://...—",
+  "https://...👈". Agora o link conta como presente se o caractere antes e o
+  depois não continuarem uma URL (letra, número, `/ = ? & % # ~ +` e `.`/`-`
+  antes; `.`/`,` seguidos de letra ou número depois) e se não vier logo após
+  "://". Spoof continua barrado ("https://golpe.com/?r=https://loja.com/p",
+  ".../x#https://loja.com/p", ".../p.html", ".../promo-fake").
+- Palavra-chave com símbolo que a normalização apagava (`+ $ % # @ & * / = \ ^ | ~ < >`
+  e demais símbolos matemáticos/de moeda) volta à regra da v1.9.0: "c++" não casa
+  "c", "R$" não casa "r", "100%" não casa "R$100". "black-26", "eu, quero",
+  "quero!" e emoji seguem como na 1.10.0.
+- `""` junto de outras palavras-chave é descartado (virava pega-tudo escondido);
+  `[""]` sozinho segue como na v1.9.0. O MCP passa a usar a mesma limpeza do banco
+  (`db._limpa_keywords`), com as mesmas mensagens de antes.
+- Palavra-chave de até 3 letras não casa mais a letra final dobrada do texto: "mal"
+  não casa "mall", "bel" não casa "bell", "jaz" não casa "jazz". "siiim" segue
+  casando "sim" e "queroo" casando "quero".
+- Resposta da IA: `{primeiro_nome}`, `{nome}`, `{name}`, `{username}` (e as formas
+  em colchete, qualquer caixa, com espaço dentro) viram o dado do próprio lead;
+  outras variáveis conhecidas (`{resposta_api}`, `[link]`...) somem sem ser
+  expandidas. "[2]", "{ }" e colchete comum ficam. Continua sem passar por render.
+- Dado que vai pra IA perde todo caractere de controle (DEL e C1 0x80–0x9F
+  inclusive), menos quebra de linha e tab.
+- `match_trigger` para no primeiro gatilho que decide pela regra do exato, sem
+  testar os seguintes (mesmo vencedor de antes).
+- `montar_prompt_ia` limpa cada variável do dono uma vez só.
+
 ## [1.10.0] - 2026-10-29
 
 ### Mudado — Palavra-chave casa plural e variações

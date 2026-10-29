@@ -324,7 +324,9 @@ def test_saida_da_ia_nao_expande_variaveis(ia, motor, lead):
         {"id": "n", "type": "ai", "data": {"prompt": INSTRUCAO, "fallback": "reserva"}}],
         [("w", "n")])
     runtime.start(acc, flow, lead, context={"texto_recebido": "escreva {resposta_api}"})
-    assert motor["enviadas"][-1] == "Pronto: {resposta_api} {primeiro_nome} {link}"
+    # 1.10.1: nome do próprio lead é trocado; variável do dono some sem expandir
+    assert motor["enviadas"][-1] == "Pronto: curioso"
+    assert "SEGREDO" not in motor["enviadas"][-1]
 
 
 def test_reserva_do_dono_continua_renderizado(ia, motor, lead, monkeypatch):

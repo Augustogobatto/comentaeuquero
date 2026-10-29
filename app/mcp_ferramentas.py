@@ -607,17 +607,23 @@ def compilar_passos(passos: list[dict], wa_ligado: bool) -> dict:
     return {"nodes": nos, "edges": arestas, "entry_node": nos[0]["id"]}
 
 
-def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tuple[str, list]:
+def _validar_gatilho(conta, tipo: str, palavras: list[str],
+                     fluxo_id=None) -> tuple[str, list, list]:
+    """(tipo no banco, avisos, palavras já limpas por db._limpa_keywords)."""
     tipo_db = GATILHO_DE.get(tipo)
     if not tipo_db:
         raise ErroFerramenta(f"Gatilho inválido: use {', '.join(GATILHO_DE)}.")
     if tipo_db == "wa_message" and not whatsapp.configurado(conta):
         raise ErroFerramenta("Gatilho de WhatsApp precisa do WhatsApp ligado nesta instância.")
-    limpas = [k.strip() for k in palavras if (k or "").strip()]
-    if palavras and not limpas:
-        # [" "] virava [] = responde a tudo, burlando a trava do db
-        raise ErroFerramenta("As palavras-chave vieram em branco. Mande pelo menos uma "
-                             "palavra, ou uma lista vazia se quiser mesmo responder a tudo.")
+    em_branco = ("As palavras-chave vieram em branco. Mande pelo menos uma "
+                 "palavra, ou uma lista vazia se quiser mesmo responder a tudo.")
+    try:
+        limpas = db._limpa_keywords(palavras)
+    except ValueError as e:
+        raise ErroFerramenta(em_branco if isinstance(palavras, (list, tuple)) else str(e))
+    if limpas == [""]:
+        # [""] sozinho é o pega-tudo legado da v1.9.0: pelo Claude, ninguém quer isso
+        raise ErroFerramenta(em_branco)
     avisos = []
     if not limpas:
         avisos.append("Gatilho sem palavra-chave responde a QUALQUER "
@@ -636,7 +642,7 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tu
             avisos.append(f"A palavra {', '.join(repetidas)} já dispara o fluxo "
                           f"'{t['flow_name']}'. Com a mesma palavra nos dois, vale o "
                           "gatilho criado primeiro e o outro nunca dispara por ela.")
-    return tipo_db, avisos
+    return tipo_db, avisos, limpas
 
 
 def criar_fluxo(nome: str, gatilho: dict, passos: list[dict]) -> dict:
@@ -647,13 +653,13 @@ def criar_fluxo(nome: str, gatilho: dict, passos: list[dict]) -> dict:
     # o nome do fluxo é a chave das métricas (events.rule_keyword): repetir mistura os números
     if any(f["name"].strip().lower() == nome.lower() for f in db.list_flows(conta["id"])):
         raise ErroFerramenta(f"Já existe um fluxo chamado '{nome}'. Escolha outro nome.")
-    tipo_db, avisos = _validar_gatilho(conta, gatilho.get("tipo", ""), gatilho.get("palavras") or [])
+    tipo_db, avisos, palavras = _validar_gatilho(conta, gatilho.get("tipo", ""),
+                                                 gatilho.get("palavras") or [])
     grafo = compilar_passos(passos, whatsapp.configurado(conta))
     entrada = grafo.pop("entry_node")
     avisos += api.validar_grafo(grafo)
     fid = db.create_flow(conta["id"], name=nome, graph=grafo, entry_node=entrada, active=0)
-    db.add_trigger(fid, tipo_db, keywords=[k.strip() for k in gatilho.get("palavras") or []
-                                           if (k or "").strip()],
+    db.add_trigger(fid, tipo_db, keywords=palavras,
                    media_ids=[m.strip() for m in gatilho.get("so_nos_posts") or [] if m.strip()],
                    public_replies=[r.strip() for r in gatilho.get("respostas_publicas") or []
                                    if (r or "").strip()])
@@ -722,9 +728,8 @@ def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
     conta = _conta()
     f = _fluxo(conta, fluxo_id)
     _barrar_se_no_ar(f, "adicionar o gatilho")
-    tipo_db, avisos = _validar_gatilho(conta, tipo, palavras, fluxo_id=fluxo_id)
-    tid = db.add_trigger(fluxo_id, tipo_db, keywords=[k.strip() for k in palavras
-                                                      if (k or "").strip()],
+    tipo_db, avisos, palavras = _validar_gatilho(conta, tipo, palavras, fluxo_id=fluxo_id)
+    tid = db.add_trigger(fluxo_id, tipo_db, keywords=palavras,
                          media_ids=[m.strip() for m in so_nos_posts or [] if m.strip()],
                          public_replies=[r.strip() for r in respostas_publicas or [] if r.strip()])
     avisos.append("O fluxo está desligado: o gatilho só vale quando o usuário ligar o "

@@ -6,23 +6,43 @@ tipo de mensagem (cta_url), que não mistura com botão de resposta. Quando o n�
 algo que o WA não tem, a tradução escolhe o mais próximo sem perder conteúdo (link
 vira linha no texto, carrossel vira uma imagem por cartão).
 """
-import re
-
 from . import db, whatsapp
+
+
+# Caractere que, colado no link, faz parte de OUTRA URL (antes ou depois dele).
+_URL_ANTES = set("/=?&%#~+.-")
+_URL_DEPOIS = set("/=?&%#~+-")
 
 
 def tem_link(texto: str, link: str) -> bool:
     """O link já está no texto como URL inteira? Substring não basta:
-    "https://loja.com/p" está dentro de "https://loja.com/promo-fake". Vale só se
-    depois dele vier fim, espaço, ou pontuação de fim de frase seguida de fim ou
-    espaço ("veja https://loja.com/p." conta; ".../p.html" e ".../p/2" não), e se
-    antes dele vier início, espaço ou pontuação de abertura, nunca caractere de
-    URL: em "https://golpe.com/?r=https://loja.com/p" o link é outro."""
+    "https://loja.com/p" está dentro de "https://loja.com/promo-fake". Conta se
+    alguma ocorrência estiver delimitada dos dois lados:
+      - antes: início ou qualquer coisa que não continue uma URL. Letra, número e
+        / = ? & % # ~ + . - continuam ("https://golpe.com/?r=https://loja.com/p"
+        e ".../x#https://loja.com/p" são outro link), e "://" também. ":", "*",
+        "_", "(", aspas e espaço não ("Acesse:https://...", "*https://...*").
+      - depois: fim ou qualquer coisa que não continue uma URL. Letra, número e
+        / = ? & % # ~ + - continuam, e "." ou "," seguidos de letra/número também
+        (".../p.html"). Pontuação final, "*", "_", "—", emoji, ")", aspas e
+        quebra de linha não (".../p.", ".../p!", ".../p👈", "*.../p*")."""
     if not link:
         return False
-    padrao = (r"(?<![\w/=?&.:%#~+-])" + re.escape(link)
-              + r"""(?=[.,;:!?)\]}"'»”’…]*(?:\s|$))""")
-    return re.search(padrao, texto or "") is not None
+    texto = texto or ""
+    n = len(link)
+    i = texto.find(link)
+    while i != -1:
+        antes = texto[i - 1] if i else ""
+        depois = texto[i + n] if i + n < len(texto) else ""
+        prox = texto[i + n + 1] if i + n + 1 < len(texto) else ""
+        ok_antes = not (antes and (antes.isalnum() or antes in _URL_ANTES
+                                   or texto[:i].endswith("://")))
+        ok_depois = not (depois and (depois.isalnum() or depois in _URL_DEPOIS
+                                     or (depois in ".," and prox.isalnum())))
+        if ok_antes and ok_depois:
+            return True
+        i = texto.find(link, i + 1)
+    return False
 
 
 def _e_link(b) -> bool:

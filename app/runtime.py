@@ -287,6 +287,30 @@ def escolhe_variacao(data: dict, session: dict, node_id: str):
 # O reserva (fallback) é do dono e continua sendo renderizado.
 _TEXTO_PRONTO = "_texto_pronto"
 
+# Variável que a IA escreveu na resposta ({nome}, [primeiro_nome]...). As do próprio
+# lead são trocadas pelo valor dele (dado dele mesmo, sem risco); as demais
+# conhecidas do contexto/campos somem sem ser expandidas ({resposta_api} nunca vira
+# o retorno do webhook). "[2]", "{ }" e colchete comum da conversa ficam.
+_VAR_IA = re.compile(r"\{\s*(\w+)\s*\}|\[\s*(\w+)\s*\]")
+
+
+def _pos_ia(texto, lead, ctx) -> str:
+    """Pós-processa SÓ o texto gerado pela IA (sem render)."""
+    if not texto:
+        return ""
+    username = lead.get("username") or ""
+    do_lead = {"primeiro_nome": primeiro_nome(lead), "username": username,
+               "nome": lead.get("name") or username, "name": lead.get("name") or username}
+    conhecidas = {k.lower() for k in _valores(lead, ctx)} | {k.lower() for k in ctx or {}}
+
+    def troca(m):
+        nome = (m.group(1) or m.group(2)).lower()
+        if nome in do_lead:
+            return do_lead[nome]
+        return "" if nome in conhecidas else m.group(0)
+
+    return _limpa_espacos(_VAR_IA.sub(troca, texto))
+
 
 def _enviar(account, session, node, lead, recipient):
     """Executa o envio de um nó de mensagem. Retorna (ok, detalhe)."""
@@ -298,10 +322,10 @@ def _enviar(account, session, node, lead, recipient):
     # sem deixar rastro — foi assim que três pessoas receberam o texto sem o link.
     ctx = {**contexto, "link": data.get("link") or ""}
     bruto, variacao = escolhe_variacao(data, session, node.get("id", ""))
-    # Resposta da IA sai como veio: passar por render() expandiria {link},
-    # {resposta_api}... que o lead induziu a IA a escrever.
+    # Resposta da IA não passa por render(): expandiria {link}, {resposta_api}...
+    # que o lead induziu a IA a escrever. Só _pos_ia (nome do próprio lead).
     pronto = bool(data.get(_TEXTO_PRONTO))
-    texto = bruto if pronto else render(bruto, lead, ctx)
+    texto = _pos_ia(bruto, lead, ctx) if pronto else render(bruto, lead, ctx)
     marca = f" [v{variacao + 1}]" if variacao is not None else ""
 
     if canal_de(session) == "wa":
@@ -677,7 +701,8 @@ def _limpa_dado(valor) -> str:
     """Tira controle e invisível de contrabando. É o texto que de fato vai pra IA
     (antes do teto)."""
     v = str(valor or "")
-    v = "".join(c for c in v if c in "\n\t" or ord(c) >= 32)
+    # todo controle (Cc: C0, DEL e C1 0x80-0x9F) menos quebra de linha e tab
+    v = "".join(c for c in v if c in "\n\t" or unicodedata.category(c) != "Cc")
     return _CONTRABANDO.sub(lambda m: m.group(1) or "", v)
 
 
@@ -688,8 +713,12 @@ def _dado_seguro(valor, teto=None, cortes=None, nome=None) -> str:
     escrito: sem NFKC ("2ª via", "50 m²" e "½" ficam iguais) e sem escapar HTML
     ("Ana & Bia" continua "Ana & Bia"). Se cortou e `cortes` foi passado, entra
     nele (nome, tamanho depois da limpeza, teto)."""
+    return _seguro_de_limpo(_limpa_dado(valor), teto, cortes, nome)
+
+
+def _seguro_de_limpo(v, teto=None, cortes=None, nome=None) -> str:
+    """_dado_seguro de um valor que já passou por _limpa_dado."""
     teto = IA_MAX_CHARS_CAMPO if teto is None else teto
-    v = _limpa_dado(valor)
     if len(v) > teto:
         if cortes is not None:
             cortes.append((nome, len(v), teto))
@@ -764,8 +793,9 @@ def montar_prompt_ia(instrucao, lead, context, cortes=None):
         restante, linhas = IA_MAX_CHARS_DONO_TOTAL, []
         for n in do_dono:
             teto = min(IA_MAX_CHARS_DONO, restante)
-            valor = _dado_seguro(valores[n], teto, cortes, n)
-            restante = max(0, restante - min(len(_limpa_dado(valores[n])), teto))
+            limpo = _limpa_dado(valores[n])
+            valor = _seguro_de_limpo(limpo, teto, cortes, n)
+            restante = max(0, restante - min(len(limpo), teto))
             linhas.append(f'<campo nome="{n}">{valor}</campo>')
         campos = "\n".join(linhas)
         system += f"\n\n<dados_do_dono>\n{campos}\n</dados_do_dono>"
