@@ -78,7 +78,7 @@ O comenta EU QUERO não cobra nada. Você paga o servidor, que custa o mesmo com
 | 25.000 | US$ 139 (Advanced) | só o servidor |
 | 50.000 | US$ 209 (Advanced + 25.000 extras) | só o servidor |
 
-Fonte: preços públicos em [manychat.com/pricing](https://manychat.com/pricing), consultados em 21/10/2026, plano anual, valor por mês, sem impostos. No plano mensal o ManyChat cobra mais. As mensagens de WhatsApp são cobradas pela Meta nos dois casos (veja abaixo).
+Fonte: preços públicos em [manychat.com/pricing](https://manychat.com/pricing), consultados em 21/10/2026, plano anual, valor por mês, sem impostos. No plano mensal o ManyChat cobra mais. As mensagens de WhatsApp são cobradas pela Meta nos dois casos (veja abaixo). ManyChat é marca de ManyChat, Inc.; o comenta EU QUERO não tem relação com a empresa.
 
 ## Custo do WhatsApp
 

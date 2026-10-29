@@ -105,7 +105,7 @@ const themePt: DefaultTheme.Config = {
   },
   footer: {
     message: 'Open source, licença de uso sustentável. <a href="/licenca">Ler a licença</a>. Feito por <a href="https://www.instagram.com/augustogobatto/" target="_blank" rel="noopener">@augustogobatto</a> · <a href="https://ia.augustogobatto.com/club" target="_blank" rel="noopener">Push Club</a>',
-    copyright: '© 2026 Augusto Gobatto',
+    copyright: '© 2026 Augusto Gobatto. ManyChat é marca de ManyChat, Inc. O comenta EU QUERO não tem relação com a empresa.',
   },
   search: {
     provider: 'local',
