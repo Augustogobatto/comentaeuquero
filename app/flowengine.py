@@ -24,20 +24,21 @@ from . import db, instagram, runtime
 PROCESS_LOCK = runtime.PROCESS_LOCK
 
 
-def _casa_keywords(keywords, texto) -> bool:
-    """Palavra inteira, sem acento nem caixa atrapalhando.
+# ---------- casamento de palavra-chave ----------
+#
+# Um lugar só para todos os canais (comentário, live, story, direct, WhatsApp): todos
+# passam por match_trigger. Duas forças de casamento:
+#   exato:    mesmas palavras depois de normalizar (caixa, acento, pontuação, emoji)
+#   variação: além disso, letra final esticada ("queroo") e plural pt-BR ("livros")
+# Exato sempre ganha de variação, então "livro" e "livros" em fluxos diferentes
+# continuam separados.
 
-    Gatilho sem palavra-chave casa com qualquer texto (é o "responde sempre").
-    """
-    if not keywords:
-        return True
-    if not texto:
-        return False
-    alvo = _normaliza(texto)
-    for k in keywords:
-        if re.search(r"\b" + re.escape(_normaliza(k)) + r"\b", alvo):
-            return True
-    return False
+EXATO, VARIACAO = 2, 1
+
+# plural irregular pt-BR -> singular. Aplicado aos dois lados, então só precisa
+# levar plural e singular para a mesma forma.
+_PLURAIS = (("oes", "ao"), ("aes", "ao"), ("ais", "al"), ("eis", "el"), ("ois", "ol"),
+            ("uis", "ul"), ("ns", "m"))
 
 
 def _normaliza(s: str) -> str:
@@ -47,18 +48,107 @@ def _normaliza(s: str) -> str:
     return sem_acento.lower()
 
 
+def _tokens(s: str) -> list:
+    """Palavras do texto: minúsculo, sem acento, pontuação e emoji viram espaço."""
+    return re.sub(r"[\W_]+", " ", _normaliza(s)).split()
+
+
+def _estica(t: str) -> str:
+    """Desfaz letra esticada: 3+ iguais viram uma ("queeero"), e a última letra
+    dobrada também ("queroo"). Dobra no meio ("carro") fica."""
+    t = re.sub(r"([a-z])\1{2,}", r"\1", t)
+    if len(t) >= 4 and t[-1].isalpha() and t[-1] == t[-2]:
+        t = t[:-1]
+    return t
+
+
+def _formas(tok: str) -> set:
+    """Formas de uma palavra para casar variação: ela, e o singular provável."""
+    t = _estica(tok)
+    f = {t}
+    if t.endswith("s") and len(t) >= 4:        # livros, dias (não "as", "os", "mes")
+        f.add(t[:-1])
+    if t.endswith("es") and len(t) >= 5:       # flores, luzes, meses
+        f.add(t[:-2])
+    for suf, rep in _PLURAIS:                  # pães, animais, papéis, bons
+        if t.endswith(suf) and len(t) > len(suf):
+            f.add(t[:-len(suf)] + rep)
+    return f
+
+
+def _casa_sequencia(kw: list, alvo: list, igual) -> bool:
+    n = len(kw)
+    for i in range(len(alvo) - n + 1):
+        if all(igual(kw[j], alvo[i + j]) for j in range(n)):
+            return True
+    return False
+
+
+def casa_palavra(keyword: str, texto: str) -> int:
+    """0 = não casa, VARIACAO, ou EXATO. Palavra inteira (ou frase inteira, na
+    ordem), em qualquer posição do texto. "ia" nunca casa dentro de "dia"."""
+    kw = _tokens(keyword)
+    alvo = _tokens(texto)
+    if not kw or not alvo:
+        return 0
+    if _casa_sequencia(kw, alvo, lambda a, b: a == b):
+        return EXATO
+    formas = {}
+
+    def parecido(k, a):
+        for x in (k, a):
+            if x not in formas:
+                formas[x] = _formas(x)
+        if formas[k] & formas[a]:
+            return True
+        # palavra curta no plural só no sentido palavra-chave -> texto: "ia" casa "IAs",
+        # "o" casa "os", mas "mes" não casa "me"
+        return len(a) <= 3 and a.endswith("s") and a[:-1] == _estica(k)
+    if _casa_sequencia(kw, alvo, parecido):
+        return VARIACAO
+    return 0
+
+
+def _forca(keywords, texto) -> int:
+    """Força do gatilho para este texto. Sem palavra-chave = "responde sempre"
+    (devolve EXATO, como era: casa com qualquer texto)."""
+    if not keywords:
+        return EXATO
+    if not texto:
+        return 0
+    return max((casa_palavra(k, texto) for k in keywords), default=0)
+
+
+def _casa_keywords(keywords, texto) -> bool:
+    """Compatibilidade: casa de qualquer forma (exata ou variação)."""
+    return _forca(keywords, texto) > 0
+
+
 def match_trigger(account_id, tipo, texto, media_id=None):
-    """Primeiro gatilho ativo que casa. Ordem = ordem de criação, como no painel.
+    """Gatilho ativo que casa. Ordem = ordem de criação, como no painel.
 
     Gatilho com media_ids preenchido só vale pros posts listados; vazio vale pra
     qualquer um. Isso é o "Reel específico" do ManyChat.
+
+    Prioridade:
+      1. Se alguma palavra-chave casou exata, vale o primeiro gatilho (na ordem) que
+         casa exato ou que é "responde sempre". É a regra de antes, intacta.
+      2. Senão, vale o primeiro (na ordem) entre os que casam por variação e os
+         "responde sempre".
+    Assim variação nunca rouba evento de um gatilho que casa exato.
     """
+    candidatos = []
     for t in db.active_triggers(account_id, tipo):
         if t["media_ids"] and str(media_id or "") not in [str(m) for m in t["media_ids"]]:
             continue
-        if _casa_keywords(t["keywords"], texto):
-            return t
-    return None
+        forca = _forca(t["keywords"], texto)
+        if forca:
+            candidatos.append((t, forca))
+    if not candidatos:
+        return None
+    if any(f == EXATO and t["keywords"] for t, f in candidatos):
+        return next(t for t, f in candidatos if f == EXATO)
+    return candidatos[0][0]
 
 
 def _lead_de(account, igsid, username="", keyword=""):

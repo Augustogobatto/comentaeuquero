@@ -27,11 +27,13 @@ Um gatilho diz quando um fluxo começa. Fica no bloco **Quando começa**; um flu
 1. Texto e palavra passam para minúsculas e perdem os acentos. "Eu Quero" = "eu quero"; "promoção" = "promocao".
 2. A palavra precisa aparecer **inteira**, em qualquer posição. "quero" dispara em "eu quero muito"; "passo" não dispara em "passou".
 3. Frase com espaço casa como sequência: "eu quero" dispara em "eu quero sim", não em "quero eu".
-4. Plural e outras terminações não casam sozinhos: "livro" não dispara em "livros". Ponha as duas formas. (Melhorar isso está nos [próximos upgrades](/upgrades).)
+4. Plural e letra esticada casam sozinhos: "livro" dispara em "livros", "pão" em "pães", "quero" em "queroo" e "QUERO!!! 🙏". Diminutivo e outras palavras não: "livro" não dispara em "livrinho" nem "livraria", "ia" não dispara em "dia".
 
 ## Quando dois gatilhos casam
 
 Vale o primeiro gatilho ativo, na ordem em que foram criados, de um fluxo ativo. Só um fluxo dispara por evento.
+
+Palavra escrita igual ganha de variação: com "livro" num fluxo e "livros" em outro, "livros" vai pro segundo e "livro" pro primeiro, em qualquer ordem.
 
 ## O que é ignorado
 

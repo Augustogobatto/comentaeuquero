@@ -113,8 +113,13 @@ check("ficou quieto", len(ENVIADOS) == 0, f"{len(ENVIADOS)}")
 
 print("\n[3] palavra dentro de outra palavra não dispara")
 ENVIADOS.clear()
-flowengine.process_payload(comentario("auroras boreais", cid="c3", uid="U3"))
-check("'auroras' não aciona 'aurora'", len(ENVIADOS) == 0, f"{len(ENVIADOS)}")
+flowengine.process_payload(comentario("boreal auroral", cid="c3", uid="U3"))
+check("'auroral' não aciona 'aurora'", len(ENVIADOS) == 0, f"{len(ENVIADOS)}")
+
+print("\n[3b] plural aciona a palavra-chave no singular")
+ENVIADOS.clear()
+flowengine.process_payload(comentario("auroras boreais", cid="c3b", uid="U3b"))
+check("'auroras' aciona 'aurora'", len(ENVIADOS) == 1, f"{len(ENVIADOS)}")
 
 print("\n[4] acento e caixa não atrapalham")
 ENVIADOS.clear()

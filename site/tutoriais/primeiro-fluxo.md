@@ -22,7 +22,7 @@ Clique em **Quando começa** e depois em **Adicionar gatilho**:
 - **Responder no próprio comentário:** `Te mandei no direct`. Dá pra pôr várias frases; elas saem em rodízio, o que parece menos robô.
 
 ::: tip Como a palavra é reconhecida
-Maiúsculas e acentos não importam: "Eu Quero" e "eu quero" disparam igual. A palavra precisa aparecer inteira, em qualquer lugar do comentário: "quero" dispara em "eu quero muito", mas "passo" não dispara em "passou". Sem nenhuma palavra-chave, o gatilho dispara para qualquer comentário.
+Maiúsculas e acentos não importam: "Eu Quero" e "eu quero" disparam igual. A palavra precisa aparecer inteira, em qualquer lugar do comentário: "quero" dispara em "eu quero muito", mas "passo" não dispara em "passou". Plural e letra esticada também valem: "livro" dispara em "livros" e "quero" em "queroo". Sem nenhuma palavra-chave, o gatilho dispara para qualquer comentário.
 :::
 
 ## 3. Adicione a mensagem

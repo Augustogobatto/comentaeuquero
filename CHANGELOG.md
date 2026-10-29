@@ -3,6 +3,18 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [Unreleased]
+
+### Mudado — Palavra-chave casa plural e variações
+- Uma regra só pra comentário, live, story, direct e WhatsApp (`flowengine.casa_palavra`):
+  caixa, acento, pontuação e emoji não contam; letra esticada no fim ("queroo",
+  "queeero") e plural pt-BR (s, es, ões/ães/ão, ais/al, éis/el, óis/ol, uis/ul, ns/m)
+  casam nos dois sentidos. Continua palavra inteira: "ia" não dispara em "dia",
+  "livro" não dispara em "livrinho".
+- Escrita igual ganha de variação: "livro" e "livros" em fluxos diferentes seguem
+  separados. Se algum gatilho casa exato, vale a regra de antes (primeiro na ordem
+  entre os exatos e os "responde sempre").
+
 ## [1.9.0] - 2026-10-22
 
 ### Adicionado — Conectar ao Claude (MCP)
