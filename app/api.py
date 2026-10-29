@@ -356,9 +356,12 @@ def criar_trigger(flow_id: int, body: TriggerIn):
         raise HTTPException(404, "fluxo não encontrado")
     if body.type not in TIPOS_GATILHO:
         raise HTTPException(400, f"tipo de gatilho inválido: {body.type}")
-    tid = db.add_trigger(flow_id, body.type, keywords=body.keywords,
-                         media_ids=body.media_ids, public_reply=body.public_reply,
-                         public_replies=body.public_replies, active=body.active)
+    try:
+        tid = db.add_trigger(flow_id, body.type, keywords=body.keywords,
+                             media_ids=body.media_ids, public_reply=body.public_reply,
+                             public_replies=body.public_replies, active=body.active)
+    except ValueError as e:   # palavra-chave só de espaços
+        raise HTTPException(400, str(e))
     return {"id": tid}
 
 
@@ -407,11 +410,16 @@ def importar(body: dict):
                          graph=body["graph"], entry_node=body.get("entry_node") or "",
                          active=0)   # entra desligado: quem importa revisa antes de ligar
     for t in body.get("triggers", []):
-        db.add_trigger(fid, t.get("type", "comment"), keywords=t.get("keywords") or [],
-                       media_ids=t.get("media_ids") or [],
-                       public_reply=t.get("public_reply", ""),
-                       public_replies=t.get("public_replies") or [],
-                       active=t.get("active", 1))
+        try:
+            db.add_trigger(fid, t.get("type", "comment"), keywords=t.get("keywords") or [],
+                           media_ids=t.get("media_ids") or [],
+                           public_reply=t.get("public_reply", ""),
+                           public_replies=t.get("public_replies") or [],
+                           active=t.get("active", 1))
+        except ValueError:
+            # só espaços: virar pega-tudo roubaria o evento dos outros fluxos
+            avisos.append("Um gatilho só com palavra-chave em branco foi ignorado. "
+                          "Crie de novo com a palavra certa.")
     return {"id": fid, "avisos": avisos,
             "aviso_geral": "Fluxo importado desligado. Revise e ative quando quiser."}
 

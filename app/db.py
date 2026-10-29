@@ -933,14 +933,24 @@ def _trigger_row(r) -> dict:
 
 
 def _limpa_keywords(keywords) -> list:
-    """Tira espaço das pontas e repetidas. Palavra que fica vazia continua como ""
-    (não some): [""] casa qualquer texto com letra ou número, como na v1.9.0, e
-    sumir com ela viraria "responde sempre", que casa até figurinha."""
+    """Tira espaço das pontas e repetidas.
+
+    "" literal continua "" (regra da v1.9.0: casa qualquer texto com letra ou
+    número). Palavra que só fica vazia DEPOIS do strip (" ", "   ") é descartada:
+    virar "" transformaria um gatilho digitado com espaço num pega-tudo que rouba o
+    evento de todos os outros. Se sobrar nenhuma palavra de uma lista que tinha
+    alguma, é ValueError: lista vazia é "responde sempre", que casa até figurinha,
+    e ninguém que digitou uma palavra quis isso."""
     limpas = []
     for k in keywords or []:
-        k = (k or "").strip()
+        bruto = k or ""
+        k = bruto.strip()
+        if not k and bruto:
+            continue
         if k not in limpas:
             limpas.append(k)
+    if keywords and not limpas:
+        raise ValueError("palavra-chave vazia: digite pelo menos uma palavra")
     return limpas
 
 
@@ -1181,8 +1191,12 @@ def migrate_rules_to_flows():
         flow_id = create_flow(rule["account_id"], name=name, graph=graph,
                               entry_node="n1", active=rule.get("active", 1))
         for tipo in ("comment", "story_reply", "dm"):
-            add_trigger(flow_id, tipo, keywords=keywords,
-                        public_reply=public_reply if tipo == "comment" else "")
+            try:
+                add_trigger(flow_id, tipo, keywords=keywords,
+                            public_reply=public_reply if tipo == "comment" else "")
+            except ValueError:   # regra antiga só com espaços: não vira pega-tudo
+                log_event("migracao_regra_sem_palavra", rule["account_id"],
+                          payload={"rule_id": rule["id"]})
         conn().execute("UPDATE rules SET flow_id=? WHERE id=?", (flow_id, rule["id"]))
         conn().commit()
         convertidas += 1

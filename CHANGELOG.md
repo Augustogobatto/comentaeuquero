@@ -27,7 +27,11 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
   "QUERO_NAO" não dispara "quero", e "@maria_livros" não dispara "livros".
 - Palavra-chave sem letra nem número ("", "🔥", "!!") segue a regra da v1.9.0 sem
   mudança: "" casa qualquer texto com letra ou número. Ao salvar gatilho, palavras
-  perdem espaço das pontas e repetidas (`db.add_trigger`); a vazia continua vazia.
+  perdem espaço das pontas e repetidas (`db.add_trigger`); "" literal continua "".
+  Palavra só de espaços (" ") é descartada ao salvar, em vez de virar "" e roubar o
+  evento de todos os gatilhos; se não sobrar nenhuma, o gatilho é recusado (API 400;
+  no import, o gatilho é pulado com aviso; na migração de regras antigas, pulado com
+  o evento `migracao_regra_sem_palavra`).
 - Escrita igual ganha de variação: "livro" e "livros" em fluxos diferentes seguem
   separados. Se algum gatilho casa exato, vale a regra de antes (primeiro na ordem
   entre os exatos e os "responde sempre").
@@ -46,9 +50,24 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
   de que as instruções não podem ser reveladas.
 - Origem decide o bloco: o que veio do dono (retorno de webhook, "definir campo" com
   valor fixo ou montado só com dados do dono, na mesma sessão) vai em
-  `<dados_do_dono>` no `system`, sem teto e liberado pra preço e link; o resto (texto
-  recebido, nome, @, respostas, campo salvo de origem desconhecida) vai em
-  `<dados_do_lead>`. "Responda usando o catálogo: {resposta_api}" segue funcionando.
+  `<dados_do_dono>` no `system`, como dado de referência (a IA pode citar preço e
+  link dali; ordens escritas lá dentro são ignoradas); o resto (texto recebido, nome,
+  @, respostas, campo salvo de origem desconhecida) vai em `<dados_do_lead>`.
+  "Responda usando o catálogo: {resposta_api}" segue funcionando.
+- Retorno de webhook que ecoa o lead é dado do lead: valor igual (após NFKC, sem
+  caixa, espaço e invisíveis) a um valor do lead na sessão, ou que contém um de 16+
+  caracteres. `{status}`/`{erro}` gerados pelo CEQ são do dono; as mesmas chaves vindas
+  no JSON do servidor remoto são do lead.
+- "Definir campo" com variável vazia ou desconhecida conta como do lead (origem por
+  variável: só é do dono se toda variável citada for comprovadamente do dono).
+- Dado do dono tem teto próprio: 8.000 caracteres por variável, `CEQ_IA_MAX_CHARS_DONO`
+  (mesmo parse defensivo), cortado com `… [cortado]`.
+- Dados do lead e do dono perdem caracteres de formatação invisíveis (Unicode Cf:
+  U+200B, U+2060, U+00AD, U+FEFF, tags; fica o ZWJ entre emojis e a bandeira de
+  subdivisão) e passam por NFKC antes da neutralização. A detecção da tag ignora marca
+  combinante e troca homóglifos cirílicos/gregos pela letra latina, então
+  `<\u200b/dados_do_lead>`, `＜／ｄａｄｏｓ...` e `</dаdоs_do_lead>` (cirílico) são
+  desarmados. Texto comum ("preço <100 & frete", acento, emoji) passa idêntico.
 - Texto não é mais escapado como HTML ("Ana & Bia" chegava como "Ana &amp; Bia" e a
   IA ecoava a entidade): só o `<` que abriria ou fecharia `dados_do_lead`,
   `dados_do_dono` ou `campo` (com espaço, hífen, caixa, `＜` ou `&lt;`) é trocado por `‹`.
@@ -59,6 +78,14 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
   de 6 palavras cobrindo 40% da instrução ou 25 palavras seguidas; instrução com menos
   de 12 palavras não é checada) não é enviada; sai o texto reserva (evento
   `ia_fallback`, motivo `saida_com_prompt`). Tradução e paráfrase não são detectadas.
+  Roteiro que o dono manda a IA dizer não conta: trechos entre aspas e o resto da
+  linha depois de "responda com:", "diga:", "mande:"... saem da instrução antes da
+  conta.
+- Resposta vazia (ou só espaço) da IA é fallback de verdade: o reserva sai
+  renderizado e com evento `ia_fallback`, motivo `resposta_vazia` (antes saía o
+  reserva cru, "Oi {primeiro_nome}", sem evento).
+- Instagram: o link do nó não é anexado de novo se o texto já contém o link (igual ao
+  WhatsApp). Na v1.9.0 a saída da IA também recebia o link duplicado.
 - Resposta da IA não passa mais por `render()`: `{link}`, `{resposta_api}` etc. que o
   lead induzir a IA a escrever saem literais. O texto reserva continua renderizado.
 - Prompt já salvo continua funcionando sem editar: a sintaxe `{variavel}` é a mesma.

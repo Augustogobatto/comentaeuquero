@@ -17,6 +17,7 @@ import functools
 import re
 
 from . import db, instagram, runtime
+from .texto import sem_acento
 
 # O mesmo lock do runtime, de propósito: webhook e worker precisam se excluir. Com um
 # Lock() próprio aqui, os dois seguravam cadeados diferentes e podiam rodar `_run` na
@@ -62,11 +63,7 @@ _INVARIAVEIS = frozenset(
     "onibus virus bonus simples antes atras apos tenis pires oasis atlas".split())
 
 
-def _normaliza(s: str) -> str:
-    import unicodedata
-    sem_acento = "".join(c for c in unicodedata.normalize("NFD", s or "")
-                         if unicodedata.category(c) != "Mn")
-    return sem_acento.lower()
+_normaliza = sem_acento   # minúsculo, sem acento (app/texto.py, o mesmo da IA)
 
 
 def _tokens(s: str) -> list:
