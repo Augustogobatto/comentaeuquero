@@ -28,8 +28,6 @@ Antes de abrir, procure se já existe. Se existir, deixe um joinha na issue: é 
 
 | Upgrade | Estado |
 |---|---|
-| **Proteção contra prompt injection no passo de IA.** A instrução fica separada do texto da pessoa, que vai como dado e não muda o comportamento da IA. [Tutorial](/tutoriais/ia-no-fluxo). | <Estado v="andamento" /> |
-| **Palavra-chave casando plural e variações.** "livro" dispara em "livros", "quero" em "queroo"; a palavra escrita igual continua ganhando. | <Estado v="andamento" /> |
 | **Teste A/B de mensagem com resultado.** O passo Teste A/B já sorteia; falta comparar a conversão de cada lado no painel. | <Estado v="planejado" /> |
 | **Gatilho por webhook externo.** Começar um fluxo a partir de uma compra na Hotmart, um pagamento no Stripe ou qualquer sistema que mande um webhook. | <Estado v="planejado" /> |
 
@@ -54,6 +52,8 @@ Antes de abrir, procure se já existe. Se existir, deixe um joinha na issue: é 
 
 | Upgrade | Estado |
 |---|---|
+| **Proteção contra prompt injection no passo de IA.** A instrução fica separada do texto da pessoa, que vai como dado e não muda o comportamento da IA. [Tutorial](/tutoriais/ia-no-fluxo). | <Estado v="feito" /> |
+| **Palavra-chave casando plural e variações.** "livro" dispara em "livros", "quero" em "queroo"; a palavra escrita igual continua ganhando. | <Estado v="feito" /> |
 | **Instalador de 1 comando (chão)** com HTTPS, senha, backup diário e atualização automática assinada. | <Estado v="feito" /> |
 | **Imagens assinadas.** Cada versão publicada é assinada no GitHub; a atualização automática recusa imagem sem assinatura. | <Estado v="feito" /> |
 | **Editor visual de fluxos** com mensagem, botões, opções rápidas, mídia e carrossel, IA, esperas, condição, teste A/B, etiquetas, campos e webhook. | <Estado v="feito" /> |

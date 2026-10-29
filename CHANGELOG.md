@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
-## [Unreleased]
+## [1.10.0] - 2026-10-29
 
 ### Mudado — Palavra-chave casa plural e variações
 - Uma regra só pra comentário, live, story, direct e WhatsApp (`flowengine.casa_palavra`):
