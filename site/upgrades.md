@@ -22,7 +22,6 @@ Antes de abrir, procure se já existe. Se existir, deixe um joinha na issue: é 
 
 | Upgrade | Estado |
 |---|---|
-| **WhatsApp pela Cloud API oficial.** Conexão do número, fluxos por palavra-chave, ponte Instagram → WhatsApp, templates e transmissões com relatório. [Tutorial](/tutoriais/conectar-whatsapp). | <Estado v="andamento" /> |
 | **Vários números de WhatsApp por instalação.** Hoje: um número por conta do Instagram. | <Estado v="planejado" /> |
 
 ## Fluxos e mensagens
@@ -58,4 +57,6 @@ Antes de abrir, procure se já existe. Se existir, deixe um joinha na issue: é 
 | **Instalador de 1 comando (chão)** com HTTPS, senha, backup diário e atualização automática assinada. | <Estado v="feito" /> |
 | **Imagens assinadas.** Cada versão publicada é assinada no GitHub; a atualização automática recusa imagem sem assinatura. | <Estado v="feito" /> |
 | **Editor visual de fluxos** com mensagem, botões, opções rápidas, mídia e carrossel, IA, esperas, condição, teste A/B, etiquetas, campos e webhook. | <Estado v="feito" /> |
+| **WhatsApp pela Cloud API oficial.** Conexão do número, fluxos por palavra-chave, ponte Instagram → WhatsApp, templates em pastas e transmissões com relatório por pessoa. [Tutorial](/tutoriais/conectar-whatsapp). | <Estado v="feito" /> |
+| **Conectar ao Claude (MCP).** Peça ao Claude pra montar fluxo, ver leads e preparar transmissão. Ele não liga fluxo nem dispara sozinho. [Tutorial](/tutoriais/conectar-claude). | <Estado v="feito" /> |
 | **Credenciais cifradas pelo painel**, sem precisar editar arquivo. | <Estado v="feito" /> |
