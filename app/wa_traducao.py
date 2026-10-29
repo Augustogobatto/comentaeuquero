@@ -6,7 +6,20 @@ tipo de mensagem (cta_url), que não mistura com botão de resposta. Quando o n�
 algo que o WA não tem, a tradução escolhe o mais próximo sem perder conteúdo (link
 vira linha no texto, carrossel vira uma imagem por cartão).
 """
+import re
+
 from . import db, whatsapp
+
+
+def tem_link(texto: str, link: str) -> bool:
+    """O link já está no texto como URL inteira? Substring não basta:
+    "https://loja.com/p" está dentro de "https://loja.com/promo-fake". Vale só se
+    depois dele vier fim, espaço, ou pontuação de fim de frase seguida de fim ou
+    espaço ("veja https://loja.com/p." conta; ".../p.html" e ".../p/2" não)."""
+    if not link:
+        return False
+    padrao = re.escape(link) + r"""(?=[.,;:!?)\]}"'»”’…]*(?:\s|$))"""
+    return re.search(padrao, texto or "") is not None
 
 
 def _e_link(b) -> bool:
@@ -36,7 +49,7 @@ def enviar(account, lead, node: dict, texto: str, ctx: dict, render):
 
     if tipo in ("text", "ai"):
         link = data.get("link") or ""
-        if link and link not in texto:
+        if link and not tem_link(texto, link):
             texto = f"{texto}\n{link}".strip()
         ok, _, body = whatsapp.send_text(account, to, texto)
         return _resultado(ok, body)

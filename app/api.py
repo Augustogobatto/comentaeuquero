@@ -418,7 +418,7 @@ def importar(body: dict):
                            active=t.get("active", 1))
         except ValueError:
             # só espaços: virar pega-tudo roubaria o evento dos outros fluxos
-            avisos.append("Um gatilho só com palavra-chave em branco foi ignorado. "
+            avisos.append("Um gatilho só com palavra-chave em branco (ou inválida) foi ignorado. "
                           "Crie de novo com a palavra certa.")
     return {"id": fid, "avisos": avisos,
             "aviso_geral": "Fluxo importado desligado. Revise e ative quando quiser."}

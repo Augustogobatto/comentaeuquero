@@ -614,6 +614,10 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tu
     if tipo_db == "wa_message" and not whatsapp.configurado(conta):
         raise ErroFerramenta("Gatilho de WhatsApp precisa do WhatsApp ligado nesta instância.")
     limpas = [k.strip() for k in palavras if (k or "").strip()]
+    if palavras and not limpas:
+        # [" "] virava [] = responde a tudo, burlando a trava do db
+        raise ErroFerramenta("As palavras-chave vieram em branco. Mande pelo menos uma "
+                             "palavra, ou uma lista vazia se quiser mesmo responder a tudo.")
     avisos = []
     if not limpas:
         avisos.append("Gatilho sem palavra-chave responde a QUALQUER "
@@ -719,7 +723,8 @@ def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
     f = _fluxo(conta, fluxo_id)
     _barrar_se_no_ar(f, "adicionar o gatilho")
     tipo_db, avisos = _validar_gatilho(conta, tipo, palavras, fluxo_id=fluxo_id)
-    tid = db.add_trigger(fluxo_id, tipo_db, keywords=[k.strip() for k in palavras if k.strip()],
+    tid = db.add_trigger(fluxo_id, tipo_db, keywords=[k.strip() for k in palavras
+                                                      if (k or "").strip()],
                          media_ids=[m.strip() for m in so_nos_posts or [] if m.strip()],
                          public_replies=[r.strip() for r in respostas_publicas or [] if r.strip()])
     avisos.append("O fluxo está desligado: o gatilho só vale quando o usuário ligar o "

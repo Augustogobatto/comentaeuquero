@@ -938,12 +938,16 @@ def _limpa_keywords(keywords) -> list:
     "" literal continua "" (regra da v1.9.0: casa qualquer texto com letra ou
     número). Palavra que só fica vazia DEPOIS do strip (" ", "   ") é descartada:
     virar "" transformaria um gatilho digitado com espaço num pega-tudo que rouba o
-    evento de todos os outros. Se sobrar nenhuma palavra de uma lista que tinha
-    alguma, é ValueError: lista vazia é "responde sempre", que casa até figurinha,
-    e ninguém que digitou uma palavra quis isso."""
+    evento de todos os outros. No import chega JSON de qualquer jeito: número vira
+    texto (123 -> "123", 0 -> "0"); null, true/false, objeto e lista são
+    descartados (nunca viram "" pega-tudo). Se sobrar nenhuma palavra de uma lista
+    que tinha alguma, é ValueError: lista vazia é "responde sempre", que casa até
+    figurinha, e ninguém que digitou uma palavra quis isso."""
     limpas = []
-    for k in keywords or []:
-        bruto = k or ""
+    for bruto in keywords or []:
+        if isinstance(bruto, bool) or not isinstance(bruto, (str, int, float)):
+            continue
+        bruto = bruto if isinstance(bruto, str) else str(bruto)
         k = bruto.strip()
         if not k and bruto:
             continue
@@ -955,7 +959,9 @@ def _limpa_keywords(keywords) -> list:
 
 
 def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
-                public_replies=None, active=1):
+                public_replies=None, active=1, keywords_literais=False):
+    """keywords_literais=True grava a lista como veio, sem _limpa_keywords: só a
+    migração de regras legadas usa, pra manter o comportamento da v1.9.0."""
     lista = [t for t in (public_replies or []) if (t or "").strip()]
     if not lista and (public_reply or "").strip():
         lista = [public_reply]
@@ -963,7 +969,8 @@ def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
         """INSERT INTO triggers (flow_id, type, keywords, media_ids, public_reply,
                                  public_replies, active)
            VALUES (?,?,?,?,?,?,?)""",
-        (flow_id, type_, json.dumps(_limpa_keywords(keywords), ensure_ascii=False),
+        (flow_id, type_, json.dumps(list(keywords or []) if keywords_literais
+                                    else _limpa_keywords(keywords), ensure_ascii=False),
          json.dumps(media_ids or [], ensure_ascii=False), lista[0] if lista else "",
          json.dumps(lista, ensure_ascii=False), active))
     conn().commit()
@@ -1191,12 +1198,10 @@ def migrate_rules_to_flows():
         flow_id = create_flow(rule["account_id"], name=name, graph=graph,
                               entry_node="n1", active=rule.get("active", 1))
         for tipo in ("comment", "story_reply", "dm"):
-            try:
-                add_trigger(flow_id, tipo, keywords=keywords,
-                            public_reply=public_reply if tipo == "comment" else "")
-            except ValueError:   # regra antiga só com espaços: não vira pega-tudo
-                log_event("migracao_regra_sem_palavra", rule["account_id"],
-                          payload={"rule_id": rule["id"]})
+            # palavras da regra antiga vão literais, como na v1.9.0: passar pela
+            # trava nova criaria fluxo ativo sem gatilho e a automação sumiria
+            add_trigger(flow_id, tipo, keywords=keywords, keywords_literais=True,
+                        public_reply=public_reply if tipo == "comment" else "")
         conn().execute("UPDATE rules SET flow_id=? WHERE id=?", (flow_id, rule["id"]))
         conn().commit()
         convertidas += 1
