@@ -386,6 +386,20 @@ def test_palavra_repetida_avisa(conta_ig):
     assert any("'A'" in a for a in r["avisos"])
 
 
+def test_palavra_repetida_usa_normalizacao_do_motor(conta_ig):
+    a = F.criar_fluxo("A", {"tipo": "comentario", "palavras": ["promoção"]},
+                      [{"tipo": "mensagem", "texto": "x"}])
+    db.update_flow(a["id"], active=1)
+    r = F.criar_fluxo("B", {"tipo": "comentario", "palavras": ["PROMOCAO!"]},
+                      [{"tipo": "mensagem", "texto": "y"}])
+    aviso = [x for x in r["avisos"] if "'A'" in x]
+    assert aviso and "criado primeiro" in aviso[0] and "mais antigo" not in aviso[0]
+    # variação não é repetição: escrita igual ganha e cada fluxo fica com a sua
+    r = F.criar_fluxo("C", {"tipo": "comentario", "palavras": ["promoções"]},
+                      [{"tipo": "mensagem", "texto": "z"}])
+    assert not any("'A'" in x for x in r["avisos"])
+
+
 def test_editar_ligar_gatilho_e_ver(conta_ig):
     fid = F.criar_fluxo("Mentoria", {"tipo": "comentario", "palavras": ["mentoria"]},
                         [{"tipo": "mensagem", "texto": "v1"}, {"tipo": "esperar", "minutos": 2}])["id"]

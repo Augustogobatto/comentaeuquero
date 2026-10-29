@@ -13,6 +13,7 @@ O que este módulo faz que o v0.2 não fazia:
 Herda do v0.2 tudo que já estava validado em produção: lock global, claim antes de
 enviar, nunca responder a si mesmo nem a echo.
 """
+import functools
 import re
 
 from . import db, instagram, runtime
@@ -29,16 +30,36 @@ PROCESS_LOCK = runtime.PROCESS_LOCK
 # Um lugar só para todos os canais (comentário, live, story, direct, WhatsApp): todos
 # passam por match_trigger. Duas forças de casamento:
 #   exato:    mesmas palavras depois de normalizar (caixa, acento, pontuação, emoji)
-#   variação: além disso, letra final esticada ("queroo") e plural pt-BR ("livros")
+#   variação: além disso, letra esticada ("queroo") e plural pt-BR ("livros")
 # Exato sempre ganha de variação, então "livro" e "livros" em fluxos diferentes
 # continuam separados.
+#
+# Palavra = sequência de letras, números e "_" (o \w da v1.9.0). "_" fica dentro da
+# palavra de propósito: payload de botão "QUERO_NAO" não pode disparar "quero", nem
+# "@maria_livros" disparar "livros".
+#
+# Plural é GERADO a partir do singular (livro -> livros, papel -> papéis), nunca
+# deduzido "encurtando" qualquer palavra do texto. Duas palavras casam por plural
+# quando uma está entre os plurais gerados da outra. Assim "mais" não vira "mal",
+# "pais" não vira "pal" e "seis" não vira "sel".
+#
+# Palavra de até 3 letras (depois de normalizar e desesticar) só casa igual, sem
+# plural nenhum, nos dois sentidos: "me" não casa "mes", "o" não casa "os", "ia" não
+# casa "IAs", "pão" não casa "pães", "deu" não casa "deus". Palavra curta é onde o
+# plural mais erra ("mal"/"mais", "sol"/"sois", "mão"/"mães"), então fica de fora
+# inteira. Vale para cada palavra de uma frase: "quero o livro" não casa "quero os
+# livros". Palavras invariáveis terminadas em s (_INVARIAVEIS) também só casam iguais.
+#
+# Terminação "ão" gera os três plurais ("ãos", "ões", "ães"): pela escrita não dá
+# para saber qual é (mãos, ações, pães, alemães). Limitação conhecida: palavra de 4+
+# letras em "ão" casa o plural de uma palavra em "ãe" que só difere nisso ("mamão"
+# casa "mamães").
 
 EXATO, VARIACAO = 2, 1
-
-# plural irregular pt-BR -> singular. Aplicado aos dois lados, então só precisa
-# levar plural e singular para a mesma forma.
-_PLURAIS = (("oes", "ao"), ("aes", "ao"), ("ais", "al"), ("eis", "el"), ("ois", "ol"),
-            ("uis", "ul"), ("ns", "m"))
+_CURTA = 3      # até 3 letras: só casa igual
+_INVARIAVEIS = frozenset(
+    "mais demais jamais deus cais vais sais depois pois dois seis tres mes lapis "
+    "onibus virus bonus simples antes atras apos tenis pires oasis atlas".split())
 
 
 def _normaliza(s: str) -> str:
@@ -49,79 +70,165 @@ def _normaliza(s: str) -> str:
 
 
 def _tokens(s: str) -> list:
-    """Palavras do texto: minúsculo, sem acento, pontuação e emoji viram espaço."""
-    return re.sub(r"[\W_]+", " ", _normaliza(s)).split()
+    """Palavras do texto: minúsculo, sem acento; pontuação e emoji viram espaço."""
+    return re.sub(r"\W+", " ", _normaliza(s)).split()
 
 
-def _estica(t: str) -> str:
-    """Desfaz letra esticada: 3+ iguais viram uma ("queeero"), e a última letra
-    dobrada também ("queroo"). Dobra no meio ("carro") fica."""
-    t = re.sub(r"([a-z])\1{2,}", r"\1", t)
-    if len(t) >= 4 and t[-1].isalpha() and t[-1] == t[-2]:
-        t = t[:-1]
-    return t
+@functools.lru_cache(maxsize=4096)
+def _tokens_kw(keyword: str) -> tuple:
+    """_tokens da palavra-chave, com cache: a mesma palavra-chave é testada em todo
+    evento que chega."""
+    return tuple(_tokens(keyword))
 
 
-def _formas(tok: str) -> set:
-    """Formas de uma palavra para casar variação: ela, e o singular provável."""
-    t = _estica(tok)
-    f = {t}
-    if t.endswith("s") and len(t) >= 4:        # livros, dias (não "as", "os", "mes")
-        f.add(t[:-1])
-    if t.endswith("es") and len(t) >= 5:       # flores, luzes, meses
-        f.add(t[:-2])
-    for suf, rep in _PLURAIS:                  # pães, animais, papéis, bons
-        if t.endswith(suf) and len(t) > len(suf):
-            f.add(t[:-len(suf)] + rep)
-    return f
+@functools.lru_cache(maxsize=8192)
+def _desestica(t: str) -> tuple:
+    """Formas de uma palavra DO TEXTO sem letra esticada. Só o texto é desesticado:
+    a palavra-chave é como o dono escreveu, então "mall" não casa "mal" nem "free"
+    casa "fre" (esticar só acrescenta letra, nunca tira).
+      - 3+ iguais viram uma e a última letra dobrada também: "queeeroooo", "queroo"
+        -> "quero". Dobra no meio ("carro") fica.
+      - 3+ iguais viram duas: "freee" -> "free", "classs" -> "class"."""
+    um = re.sub(r"([a-z])\1{2,}", r"\1", t)
+    if len(um) >= 4 and um[-1].isalpha() and um[-1] == um[-2]:
+        um = um[:-1]
+    dois = re.sub(r"([a-z])\1{2,}", r"\1\1", t)
+    return tuple({t, um, dois})
 
 
-def _casa_sequencia(kw: list, alvo: list, igual) -> bool:
-    n = len(kw)
-    for i in range(len(alvo) - n + 1):
-        if all(igual(kw[j], alvo[i + j]) for j in range(n)):
-            return True
-    return False
+def _gera_plurais(t: str) -> set:
+    if t.endswith("ao"):                       # mão/ação/pão: ãos, ões, ães
+        r = t[:-2]
+        return {r + "aos", r + "oes", r + "aes"}
+    if t[-1] in "aeiou":                       # livro, padre, aula
+        return {t + "s"}
+    if t.endswith(("al", "el", "ol", "ul")):   # animal, papel, anzol, azul
+        return {t[:-1] + "is"}
+    if t.endswith("il"):                       # funil -> funis, fóssil -> fósseis
+        return {t[:-1] + "s", t[:-2] + "eis"}
+    if t.endswith("m"):                        # homem -> homens
+        return {t[:-1] + "ns"}
+    if t[-1] in "rzs":                         # flor, rapaz, português
+        return {t + "es"}
+    if t[-1] == "x":                           # tórax: invariável
+        return set()
+    return {t + "s"}                           # link, ebook, post, hífen
+
+
+@functools.lru_cache(maxsize=8192)
+def _plurais(t: str) -> frozenset:
+    """Plurais pt-BR prováveis de uma palavra já normalizada e desesticada. Vazio
+    para palavra curta (até 3 letras) e invariável; nunca gera uma invariável."""
+    if len(t) <= _CURTA or t in _INVARIAVEIS or not t.isalpha():
+        return frozenset()
+    return frozenset(p for p in _gera_plurais(t) if p not in _INVARIAVEIS)
+
+
+class _Texto:
+    """Texto do evento tokenizado e indexado UMA vez; cada palavra-chave de cada
+    gatilho consulta o índice em vez de varrer o texto de novo."""
+    __slots__ = ("bruto", "toks", "_pos", "_est", "_var", "_cache", "_norm")
+
+    def __init__(self, texto):
+        self.bruto = texto or ""
+        self.toks = tuple(_tokens(self.bruto))
+        pos = {}
+        for i, t in enumerate(self.toks):
+            pos.setdefault(t, []).append(i)
+        self._pos = pos
+        self._est = None
+        self._cache = {}
+        self._norm = None
+
+    def normalizado(self):
+        if self._norm is None:
+            self._norm = _normaliza(self.bruto)
+        return self._norm
+
+    def _indexa_variacao(self):
+        est, var = {}, {}
+        for t, idx in self._pos.items():
+            for e in _desestica(t):
+                est.setdefault(e, set()).update(idx)
+                for f in (e, *_plurais(e)):
+                    var.setdefault(f, set()).update(idx)
+        self._est, self._var = est, var
+
+    def _onde_parecido(self, k):
+        """Posições do texto onde está uma variação da palavra k."""
+        if k not in self._cache:
+            if self._est is None:
+                self._indexa_variacao()
+            s = set(self._var.get(k, ()))          # igual ou k é plural do texto
+            for p in _plurais(k):                  # texto é plural de k
+                s |= self._est.get(p, set())
+            self._cache[k] = s
+        return self._cache[k]
+
+    def exato(self, kw):
+        n, toks = len(kw), self.toks
+        return any(toks[i:i + n] == kw for i in self._pos.get(kw[0], ()))
+
+    def variacao(self, kw):
+        n, total = len(kw), len(self.toks)
+        resto = [self._onde_parecido(k) for k in kw[1:]]
+        return any(i + n <= total and all(i + j + 1 in r for j, r in enumerate(resto))
+                   for i in self._onde_parecido(kw[0]))
+
+
+def _casa_legado(keyword: str, alvo: _Texto) -> int:
+    """Palavra-chave sem nenhuma letra ou número ("", "  ", "🙏", "!!"): regra da
+    v1.9.0 sem mudar nada, pra gatilho salvo assim seguir disparando como antes.
+    "" casa qualquer texto com ao menos uma letra/número; os demais só casam
+    entre duas letras/números (\\b dos dois lados)."""
+    padrao = r"\b" + re.escape(_normaliza(keyword)) + r"\b"
+    return EXATO if re.search(padrao, alvo.normalizado()) else 0
+
+
+def _casa(keyword: str, alvo: _Texto) -> int:
+    keyword = keyword or ""
+    kw = _tokens_kw(keyword)
+    if not kw:
+        return _casa_legado(keyword, alvo)
+    if not alvo.toks:
+        return 0
+    if alvo.exato(kw):
+        return EXATO
+    if alvo.variacao(kw):
+        return VARIACAO
+    return 0
 
 
 def casa_palavra(keyword: str, texto: str) -> int:
     """0 = não casa, VARIACAO, ou EXATO. Palavra inteira (ou frase inteira, na
     ordem), em qualquer posição do texto. "ia" nunca casa dentro de "dia"."""
-    kw = _tokens(keyword)
-    alvo = _tokens(texto)
-    if not kw or not alvo:
+    if not texto:
         return 0
-    if _casa_sequencia(kw, alvo, lambda a, b: a == b):
-        return EXATO
-    formas = {}
-
-    def parecido(k, a):
-        for x in (k, a):
-            if x not in formas:
-                formas[x] = _formas(x)
-        if formas[k] & formas[a]:
-            return True
-        # palavra curta no plural só no sentido palavra-chave -> texto: "ia" casa "IAs",
-        # "o" casa "os", mas "mes" não casa "me"
-        return len(a) <= 3 and a.endswith("s") and a[:-1] == _estica(k)
-    if _casa_sequencia(kw, alvo, parecido):
-        return VARIACAO
-    return 0
+    return _casa(keyword, _Texto(texto))
 
 
-def _forca(keywords, texto) -> int:
+def chave_palavra(keyword: str) -> str:
+    """Forma comparável de uma palavra-chave, a mesma que o motor usa para o exato:
+    "Eu Quero!" e "eu quero" dão a mesma chave."""
+    return " ".join(_tokens_kw(keyword or "")) or (keyword or "")
+
+
+def _forca(keywords, texto, alvo=None) -> int:
     """Força do gatilho para este texto. Sem palavra-chave = "responde sempre"
-    (devolve EXATO, como era: casa com qualquer texto)."""
+    (devolve EXATO, como era: casa com qualquer texto). `alvo` = texto já
+    indexado (_Texto), pra não repetir o trabalho a cada gatilho."""
     if not keywords:
         return EXATO
     if not texto:
         return 0
-    return max((casa_palavra(k, texto) for k in keywords), default=0)
-
-
-def _casa_keywords(keywords, texto) -> bool:
-    """Compatibilidade: casa de qualquer forma (exata ou variação)."""
-    return _forca(keywords, texto) > 0
+    if alvo is None:
+        alvo = _Texto(texto)
+    melhor = 0
+    for k in keywords:
+        melhor = max(melhor, _casa(k, alvo))
+        if melhor == EXATO:
+            break
+    return melhor
 
 
 def match_trigger(account_id, tipo, texto, media_id=None):
@@ -138,10 +245,11 @@ def match_trigger(account_id, tipo, texto, media_id=None):
     Assim variação nunca rouba evento de um gatilho que casa exato.
     """
     candidatos = []
+    alvo = _Texto(texto)      # tokeniza e indexa uma vez por evento
     for t in db.active_triggers(account_id, tipo):
         if t["media_ids"] and str(media_id or "") not in [str(m) for m in t["media_ids"]]:
             continue
-        forca = _forca(t["keywords"], texto)
+        forca = _forca(t["keywords"], texto, alvo)
         if forca:
             candidatos.append((t, forca))
     if not candidatos:

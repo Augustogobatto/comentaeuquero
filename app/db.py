@@ -932,6 +932,18 @@ def _trigger_row(r) -> dict:
     return d
 
 
+def _limpa_keywords(keywords) -> list:
+    """Tira espaço das pontas e repetidas. Palavra que fica vazia continua como ""
+    (não some): [""] casa qualquer texto com letra ou número, como na v1.9.0, e
+    sumir com ela viraria "responde sempre", que casa até figurinha."""
+    limpas = []
+    for k in keywords or []:
+        k = (k or "").strip()
+        if k not in limpas:
+            limpas.append(k)
+    return limpas
+
+
 def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
                 public_replies=None, active=1):
     lista = [t for t in (public_replies or []) if (t or "").strip()]
@@ -941,7 +953,7 @@ def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
         """INSERT INTO triggers (flow_id, type, keywords, media_ids, public_reply,
                                  public_replies, active)
            VALUES (?,?,?,?,?,?,?)""",
-        (flow_id, type_, json.dumps(keywords or [], ensure_ascii=False),
+        (flow_id, type_, json.dumps(_limpa_keywords(keywords), ensure_ascii=False),
          json.dumps(media_ids or [], ensure_ascii=False), lista[0] if lista else "",
          json.dumps(lista, ensure_ascii=False), active))
     conn().commit()

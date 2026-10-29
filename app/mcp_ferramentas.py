@@ -22,7 +22,7 @@ from typing import Literal
 
 from fastapi import HTTPException
 
-from . import api, db, instagram, runtime, transmissao, whatsapp
+from . import api, db, flowengine, instagram, runtime, transmissao, whatsapp
 
 
 class ErroFerramenta(Exception):
@@ -618,15 +618,20 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tu
     if not limpas:
         avisos.append("Gatilho sem palavra-chave responde a QUALQUER "
                       f"{NOMES_GATILHO[tipo_db]}. Confirme que é isso mesmo.")
-    # o motor usa o primeiro gatilho que casa: palavra repetida em outro fluxo ligado
-    # faz um dos dois nunca disparar
+    # mesma palavra (pela normalização do motor: caixa, acento, pontuação) em outro
+    # fluxo ligado: as duas casam exato e vale o gatilho criado primeiro, então o
+    # outro nunca dispara por ela. Variação ("livro" x "livros") não entra: escrita
+    # igual ganha de variação e cada fluxo segue com a sua.
+    minhas = {flowengine.chave_palavra(k): k for k in limpas}
     for t in db.active_triggers(conta["id"], tipo_db):
         if t["flow_id"] == fluxo_id:
             continue
-        repetidas = {k.lower() for k in limpas} & {k.lower() for k in t["keywords"]}
+        delas = {flowengine.chave_palavra(k) for k in t["keywords"]}
+        repetidas = sorted(minhas[c] for c in minhas.keys() & delas)
         if repetidas:
-            avisos.append(f"A palavra {', '.join(sorted(repetidas))} já dispara o fluxo "
-                          f"'{t['flow_name']}' (o mais antigo ganha).")
+            avisos.append(f"A palavra {', '.join(repetidas)} já dispara o fluxo "
+                          f"'{t['flow_name']}'. Com a mesma palavra nos dois, vale o "
+                          "gatilho criado primeiro e o outro nunca dispara por ela.")
     return tipo_db, avisos
 
 

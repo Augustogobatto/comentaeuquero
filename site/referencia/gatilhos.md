@@ -24,10 +24,11 @@ Um gatilho diz quando um fluxo começa. Fica no bloco **Quando começa**; um flu
 
 ## Como a palavra-chave é reconhecida
 
-1. Texto e palavra passam para minúsculas e perdem os acentos. "Eu Quero" = "eu quero"; "promoção" = "promocao".
+1. Texto e palavra passam para minúsculas e perdem os acentos. Pontuação e emoji não contam. "Eu Quero" = "eu quero"; "promoção" = "promocao"; "eu-quero" = "eu quero". O "_" faz parte da palavra: "QUERO_SIM" não dispara "quero".
 2. A palavra precisa aparecer **inteira**, em qualquer posição. "quero" dispara em "eu quero muito"; "passo" não dispara em "passou".
 3. Frase com espaço casa como sequência: "eu quero" dispara em "eu quero sim", não em "quero eu".
-4. Plural e letra esticada casam sozinhos: "livro" dispara em "livros", "pão" em "pães", "quero" em "queroo" e "QUERO!!! 🙏". Diminutivo e outras palavras não: "livro" não dispara em "livrinho" nem "livraria", "ia" não dispara em "dia".
+4. Plural e letra esticada casam sozinhos: "livro" dispara em "livros", "ação" em "ações", "papel" em "papéis", "quero" em "queroo" e "QUERO!!! 🙏". Diminutivo e outras palavras não: "livro" não dispara em "livrinho" nem "livraria", "ia" não dispara em "dia", "mal" não dispara em "mais".
+5. Palavra de até 3 letras só casa escrita igual (letra esticada vale, plural não): "sim" dispara em "siiim", mas "ia" não dispara em "IAs" e "pão" não dispara em "pães". Se quiser os dois, coloque as duas palavras no gatilho.
 
 ## Quando dois gatilhos casam
 

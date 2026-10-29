@@ -7,13 +7,36 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
 
 ### Mudado — Palavra-chave casa plural e variações
 - Uma regra só pra comentário, live, story, direct e WhatsApp (`flowengine.casa_palavra`):
-  caixa, acento, pontuação e emoji não contam; letra esticada no fim ("queroo",
-  "queeero") e plural pt-BR (s, es, ões/ães/ão, ais/al, éis/el, óis/ol, uis/ul, ns/m)
-  casam nos dois sentidos. Continua palavra inteira: "ia" não dispara em "dia",
-  "livro" não dispara em "livrinho".
+  caixa, acento, pontuação e emoji não contam ("eu-quero" e "eu, quero" casam "eu
+  quero"; "quero!" casa "quero"). Continua palavra inteira: "ia" não dispara em
+  "dia", "livro" não dispara em "livrinho".
+- Letra esticada no comentário casa: "queroo", "QUEROOO", "siiim", "freee". Só o
+  texto é desesticado, nunca a palavra-chave: "mall" não casa "mal", "free" não casa
+  "fre".
+- Plural pt-BR casa nos dois sentidos, gerado a partir do singular (s, es, ão ->
+  ãos/ões/ães, al/el/ol/ul -> ais/éis/óis/uis, il -> is/eis, m -> ns): "livro" e
+  "livros", "ação" e "ações", "papel" e "papéis", "homem" e "homens". Nunca encurta
+  palavra qualquer do texto, então "mais" não casa "mal", "pais" não casa "pal",
+  "seis" não casa "sel", "deu" não casa "deus".
+- Palavra de até 3 letras só casa igual (com letra esticada), sem plural: "me" não
+  casa "mes", "o" não casa "os", "ia" não casa "IAs", "pão" não casa "pães". Vale
+  para cada palavra de uma frase. Invariáveis em s (mais, depois, lápis, simples,
+  antes...) também só casam iguais. Limitação conhecida: palavra de 4+ letras em
+  "ão" casa o plural em "ães" de outra palavra ("mamão" casa "mamães").
+- "_" continua fazendo parte da palavra, como na v1.9.0: payload de botão
+  "QUERO_NAO" não dispara "quero", e "@maria_livros" não dispara "livros".
+- Palavra-chave sem letra nem número ("", "🔥", "!!") segue a regra da v1.9.0 sem
+  mudança: "" casa qualquer texto com letra ou número. Ao salvar gatilho, palavras
+  perdem espaço das pontas e repetidas (`db.add_trigger`); a vazia continua vazia.
 - Escrita igual ganha de variação: "livro" e "livros" em fluxos diferentes seguem
   separados. Se algum gatilho casa exato, vale a regra de antes (primeiro na ordem
   entre os exatos e os "responde sempre").
+- O texto do evento é tokenizado e indexado uma vez por evento, não uma vez por
+  gatilho: 200 gatilhos x 2 palavras numa mensagem de 4096 caracteres caiu de
+  ~75 ms (v1.9.0) para ~1 ms.
+- MCP: o aviso de palavra repetida em outro fluxo usa a normalização do motor
+  ("PROMOCAO!" = "promoção") e diz a regra certa (com a mesma palavra nos dois, vale
+  o gatilho criado primeiro); variação ("livro" x "livros") não é repetição.
 
 ### Segurança — prompt injection no passo de IA
 - A instrução do dono do fluxo vai sozinha no `system` da chamada. Nome, @, texto
