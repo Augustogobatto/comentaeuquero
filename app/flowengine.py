@@ -327,7 +327,7 @@ def _trata_messaging(account, event, meus_ids):
         motivo = (runtime.resume_postback(account, lead, postback.get("payload", ""))
                   if _sessao_ig(lead) else "sem_sessao_esperando")
         db.log_event("fluxo_postback", account["id"], db.flow_name_do_lead(lead["id"]), "botao",
-                     motivo not in ("sem_sessao_esperando", "sem_fluxo"),
+                     runtime.postback_ok(motivo),
                      lead.get("username") or remetente,
                      {"motivo": motivo, "payload": postback.get("payload", "")})
         return
@@ -345,7 +345,7 @@ def _trata_messaging(account, event, meus_ids):
         motivo = (runtime.resume_postback(account, lead, quick)
                   if _sessao_ig(lead) else "sem_sessao_esperando")
         db.log_event("fluxo_quick_reply", account["id"], db.flow_name_do_lead(lead["id"]),
-                     "quick_reply", motivo not in ("sem_sessao_esperando", "sem_fluxo"),
+                     "quick_reply", runtime.postback_ok(motivo),
                      lead.get("username") or remetente, {"motivo": motivo, "payload": quick})
         return
 

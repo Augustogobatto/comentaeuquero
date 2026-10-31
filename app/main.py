@@ -68,7 +68,7 @@ ACTIVATION_URL = os.environ.get("ACTIVATION_URL", "https://ia.augustogobatto.com
 CHAO_URL = os.environ.get("CHAO_URL", "https://ia.augustogobatto.com").rstrip("/")
 
 # Versão do produto. Sobe junto com mudança que o dono da instância percebe.
-VERSAO = "1.10.0"
+VERSAO = "1.10.1"
 
 
 # Ativação (modo aviso): nunca bloqueia a ferramenta — só informa o status no painel.

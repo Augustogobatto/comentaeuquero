@@ -1092,6 +1092,38 @@ def start(account, flow, lead, comment_id=None, context=None, canal="ig"):
     return _run(account, session_id, entry_node_id(flow), comment_id=comment_id)
 
 
+def _clique_de_outro_no(node, payload) -> bool:
+    """True se o payload com certeza não é de um botão/opção deste nó.
+
+    O payload que a Meta devolve é o `key` (ou, sem key, o título renderizado e cortado
+    pelo limite do canal). Só dá pra afirmar "não é deste nó" quando toda resposta do nó
+    tem key: com alguma sem key, o título pode ter passado por render/corte e a
+    comparação daria falso positivo, então o clique segue o caminho de sempre.
+    """
+    data = node.get("data") or {}
+    if node.get("type") == "buttons":
+        respostas = [b for b in data.get("buttons") or []
+                     if not (b.get("type") == "url" or b.get("url"))]
+    elif node.get("type") == "quick_replies":
+        respostas = list(data.get("options") or [])
+    else:
+        return False
+    if not respostas or any(not str(r.get("key") or "").strip() for r in respostas):
+        return False
+    p = str(payload or "")
+    # o WhatsApp corta o id (256 no botão, 200 na linha da lista)
+    return not any(p == k or (len(p) >= 200 and k.startswith(p))
+                   for k in (str(r["key"]) for r in respostas))
+
+
+def postback_ok(motivo):
+    """Valor do `ok` no evento de clique: clique_antigo não é falha nem avanço (NULL),
+    pra não sujar o painel de falhas nem o 'avançaram' do funil."""
+    if motivo == "clique_antigo":
+        return None
+    return motivo not in ("sem_sessao_esperando", "sem_fluxo")
+
+
 def resume_postback(account, lead, payload):
     """Clique em botão ou quick reply. O payload é a chave que casa com a aresta."""
     session = db.active_session_for_lead(lead["id"])
@@ -1100,6 +1132,15 @@ def resume_postback(account, lead, payload):
     flow = db.get_flow(session["flow_id"])
     if not flow:
         return "sem_fluxo"
+    if _clique_de_outro_no(nodes_of(flow).get(session["node_id"]) or {}, payload):
+        # botão de uma mensagem ANTERIOR (toque duplo no "Me manda" chega quando a
+        # sessão já espera o "Segui, libera"). Antes caía em next_node_id=None,
+        # encerrava a sessão e todo clique seguinte virava sem_sessao_esperando.
+        # Agora: ignora o clique, segue esperando no mesmo nó. A pessoa interagiu,
+        # então a janela de 24h reabre igual.
+        db.update_session(session["id"], window_expires_at=db.in_seconds_iso(JANELA_S))
+        db.abrir_janela(lead["id"], canal_de(session))
+        return "clique_antigo"
     # a pessoa respondeu: a janela de 24h reabre a partir de agora
     contexto = dict(session.get("context") or {})
     contexto["ultima_escolha"] = payload

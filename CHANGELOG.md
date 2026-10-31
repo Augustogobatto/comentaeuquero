@@ -3,6 +3,22 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [1.10.1] - 2026-10-31
+
+### Corrigido — Toque duplo no botão não mata mais o fluxo
+- Clique em botão ou opção rápida de uma mensagem anterior (o caso clássico: tocar 2x
+  no "Me manda" e o 2º toque chegar quando o fluxo já espera o "Segui, libera") encerrava
+  a sessão: o motor não achava a saída, marcava a sessão como concluída e todo clique
+  depois virava `sem_sessao_esperando`. A pessoa nunca recebia o brinde.
+- Agora o clique que não é de nenhum botão do passo atual é ignorado e a sessão segue
+  esperando no mesmo passo (`motivo: clique_antigo`). Vale pro Instagram (botão e opção
+  rápida) e pro WhatsApp (botão e lista). A janela de 24h reabre igual, porque a pessoa
+  interagiu.
+- `clique_antigo` entra no histórico com `ok` vazio: não conta como falha no painel nem
+  como "avançaram" no funil.
+- Só vale quando todo botão de resposta do passo tem chave (o editor sempre põe). Botão
+  sem chave continua no comportamento antigo (segue a saída padrão).
+
 ## [1.10.0] - 2026-10-29
 
 ### Mudado — Palavra-chave casa plural e variações

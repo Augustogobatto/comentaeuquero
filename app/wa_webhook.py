@@ -239,7 +239,7 @@ def _resposta_interativa(conta, lead, chave):
         return
     motivo = runtime.resume_postback(conta, lead, chave)
     db.log_event("fluxo_postback", conta["id"], db.flow_name_do_lead(lead["id"]), "wa_botao",
-                 motivo not in ("sem_sessao_esperando", "sem_fluxo"), _quem(lead),
+                 runtime.postback_ok(motivo), _quem(lead),
                  {"motivo": motivo, "payload": chave})
 
 
