@@ -15,6 +15,7 @@ coluna preenchida, segue exatamente pelo caminho de antes.
 """
 import calendar
 import json as _json
+import logging
 import re
 import time
 from urllib.parse import urlencode
@@ -22,6 +23,8 @@ from urllib.parse import urlencode
 import requests
 
 from . import alerta, db
+
+log = logging.getLogger(__name__)
 
 GRAPH = "https://graph.instagram.com/v23.0"
 OAUTH_AUTHORIZE = "https://www.instagram.com/oauth/authorize"
@@ -189,6 +192,38 @@ def _get_fb(caminho, token, **params):
     return r.status_code, _corpo(r)
 
 
+TOKEN_CURTO_SEGUNDOS = 86400   # abaixo de 1 dia é token de usuário curto (1-2h)
+
+
+def _token_longo(app_id, app_secret, tok: dict) -> dict:
+    """Token de usuário curto vira longo (60 dias) antes de ser usado ou salvo.
+
+    Sem expires_in (ou 0) é token do usuário do sistema, que não vence: fica como
+    veio. Se a troca falhar, segue com o curto (melhor que nada) e só o motivo,
+    sem segredo, vai pro log."""
+    try:
+        segundos = int(tok.get("expires_in") or 0)
+    except (TypeError, ValueError):
+        segundos = 0
+    if not (0 < segundos < TOKEN_CURTO_SEGUNDOS):
+        return tok
+    try:
+        r = requests.get(f"{GRAPH_FB}/oauth/access_token", params={
+            "grant_type": "fb_exchange_token", "client_id": app_id,
+            "client_secret": app_secret, "fb_exchange_token": tok["access_token"]},
+            timeout=30)
+    except requests.RequestException as e:
+        log.warning("troca por token longo falhou: %s", sem_segredo(e))
+        return tok
+    novo = _corpo(r)
+    if r.status_code != 200 or not novo.get("access_token"):
+        log.warning("troca por token longo falhou: http %s", r.status_code)
+        return tok
+    # token longo de usuário vale 60 dias; se a Meta não disser, assume isso
+    return {**tok, "access_token": novo["access_token"],
+            "expires_in": novo.get("expires_in") or 5184000}
+
+
 def exchange_code_fb(app_id, app_secret, redirect_uri, code) -> list:
     """code -> token -> contas do Instagram que o dono liberou. Devolve a lista de
     candidatas, cada uma pronta pra virar conta:
@@ -204,7 +239,7 @@ def exchange_code_fb(app_id, app_secret, redirect_uri, code) -> list:
         "client_id": app_id, "client_secret": app_secret,
         "redirect_uri": redirect_uri, "code": code}, timeout=30)
     r.raise_for_status()
-    tok = r.json()
+    tok = _token_longo(app_id, app_secret, r.json())
     token = tok["access_token"]
 
     status, corpo = _get_fb("me/assigned_instagram_accounts", token,
@@ -260,7 +295,7 @@ def subscribe_webhooks(conta_ou_token, fields=CAMPOS_WEBHOOK):
             url = f"{GRAPH_FB}/{no_ig(conta)}/subscribed_apps"
         r = requests.post(url, data={"subscribed_fields": fields,
                                      "access_token": access_token}, timeout=30)
-        _confere_token(conta, _corpo(r))
+        _confere_token(conta, _corpo(r), access_token)
         return r.status_code == 200, sem_segredo(r.text[:300])
     r = requests.post(f"{GRAPH}/me/subscribed_apps", params={
         "subscribed_fields": fields, "access_token": access_token}, timeout=30)
@@ -277,10 +312,17 @@ def subscribe_webhooks(conta_ou_token, fields=CAMPOS_WEBHOOK):
 CODIGO_TOKEN_INVALIDO = 190
 
 
-def _confere_token(conta, body) -> None:
+def _confere_token(conta, body, token_usado=None) -> None:
+    """Marca a conta pra reconectar no 190, mas só se o token que levou o 190 ainda
+    é o da conta. Envio ou verificação em voo com o dict de antes da reconexão
+    recebe 190 do token velho e não pode derrubar o token novo."""
     if not (conta and e_fb(conta) and conta.get("id")):
         return
     if _codigo_erro(body) != CODIGO_TOKEN_INVALIDO:
+        return
+    atual = db.get_account(conta["id"])
+    usado = token_usado or conta.get("access_token")
+    if not atual or not usado or atual.get("access_token") != usado:
         return
     if not token_invalido(conta):
         msg = str(((body or {}).get("error") or {}).get("message", ""))
@@ -485,7 +527,7 @@ def post_with_retry(url, access_token, payload, timeout=30, conta=None):
             if _codigo_erro(body) in CODIGOS_THROTTLE or r.status_code == 429:
                 _entra_em_cooldown(_espera_sugerida(r.headers), f"http {r.status_code}")
                 return None, r.status_code, body
-            _confere_token(conta, body)
+            _confere_token(conta, body, access_token)
             if r.status_code in (500, 503) and attempt == 1:
                 time.sleep(10)
                 continue

@@ -359,6 +359,7 @@ def init():
             conn().rollback()  # coluna já existe; sem o rollback a transação fica aberta
     conn().commit()
     migrate_rules_to_flows()
+    fundir_contas_duplicadas()
 
 
 # ---------- sessões do painel ----------
@@ -456,6 +457,7 @@ def upsert_account(ig_id, ig_user_id, username, access_token, token_expires_at):
                    WHERE id=?""",
                 (ig_id, ig_user_id, username or "", access_token, token_expires_at, r["id"]))
             conn().commit()
+            fundir_contas_duplicadas(manter=r["id"])
             return get_account(r["id"])
     conn().execute(
         """INSERT INTO accounts (ig_id, ig_user_id, username, access_token, token_expires_at)
@@ -466,7 +468,9 @@ def upsert_account(ig_id, ig_user_id, username, access_token, token_expires_at):
              api_modo='instagram_login', page_id=''""",
         (ig_id, ig_user_id, username or "", access_token, token_expires_at))
     conn().commit()
-    return get_account_by_ig_id(ig_id)
+    salva = conn().execute("SELECT id FROM accounts WHERE ig_id=?", (ig_id,)).fetchone()
+    fundir_contas_duplicadas(manter=salva["id"])
+    return get_account(salva["id"])
 
 
 def upsert_account_fb(ig_user_id, username, access_token, token_expires_at, page_id=""):
@@ -479,6 +483,7 @@ def upsert_account_fb(ig_user_id, username, access_token, token_expires_at, page
     """
     ig_user_id = str(ig_user_id)
     atual = get_account_by_ig_id(ig_user_id)
+    conta_id = atual["id"] if atual else None
     if atual:
         conn().execute(
             """UPDATE accounts SET ig_user_id=?, username=?, access_token=?,
@@ -492,8 +497,10 @@ def upsert_account_fb(ig_user_id, username, access_token, token_expires_at, page
                VALUES (?,?,?,?,?,'facebook_login',?)""",
             (ig_user_id, ig_user_id, username or "", access_token, token_expires_at,
              str(page_id or "")))
+        conta_id = conn().execute("SELECT last_insert_rowid()").fetchone()[0]
     conn().commit()
-    return get_account_by_ig_id(ig_user_id)
+    fundir_contas_duplicadas(manter=conta_id)
+    return get_account(conta_id)
 
 
 def get_account_by_ig_id(ig_id):
@@ -567,6 +574,161 @@ def update_account_pic(account_id, profile_pic):
 def delete_account(account_id):
     conn().execute("DELETE FROM accounts WHERE id=?", (account_id,))
     conn().commit()
+
+
+# ---------- conta duplicada (bug da 1.11.0) ----------
+#
+# Na 1.11.0, quem conectou pelo login unificado e depois voltou pro login do
+# Instagram ficou com DUAS linhas da mesma conta: uma facebook_login (ig_id =
+# ig_user_id = 1784...) e outra instagram_login (ig_id app-scoped, ig_user_id
+# 1784...). first_account() e o webhook seguiam na mais velha. Aqui as duas viram
+# uma, sem perder fluxo, lead, sessão, template nem histórico.
+#
+# Qual fica: a que foi conectada por último. Numa reconexão é a que acabou de
+# receber o token (`manter`). Na subida do app (sem saber qual token vale), é a
+# dona do `oauth_ok` mais recente no log; sem log, a de id maior (a mais nova).
+
+_COLS_CONTA_HERDAVEIS = ("profile_pic", "wa_waba_id", "wa_phone_number_id", "wa_numero",
+                         "wa_nome", "wa_qualidade", "wa_limite", "wa_estado_ts")
+
+
+def _pares_duplicados():
+    return conn().execute(
+        """SELECT f.id a, o.id b FROM accounts f JOIN accounts o
+             ON o.id <> f.id AND COALESCE(o.ig_user_id, '') <> ''
+            AND (o.ig_user_id = f.ig_user_id OR o.ig_user_id = f.ig_id)
+           WHERE f.api_modo = 'facebook_login' ORDER BY f.id, o.id""").fetchall()
+
+
+def _ultima_conexao(conta_id):
+    r = conn().execute("SELECT MAX(id) FROM events WHERE kind='oauth_ok' AND account_id=?",
+                       (conta_id,)).fetchone()
+    return r[0] or 0
+
+
+def fundir_contas_duplicadas(manter=None) -> int:
+    """Junta as linhas da mesma conta. Idempotente; devolve quantas linhas sumiram."""
+    fundidas = 0
+    while True:
+        pares = _pares_duplicados()
+        if not pares:
+            return fundidas
+        a, b = pares[0]["a"], pares[0]["b"]
+        if manter in (a, b):
+            fica = manter
+        else:
+            fica = max((a, b), key=lambda i: (_ultima_conexao(i), i))
+        sai = b if fica == a else a
+        c = conn()
+        try:
+            _move_tudo(sai, fica)
+            c.execute("DELETE FROM accounts WHERE id=?", (sai,))
+            c.execute("DELETE FROM ajustes WHERE chave=?", (f"token_invalido:{sai}",))
+            c.commit()
+        except Exception:
+            c.rollback()
+            raise
+        fundidas += 1
+
+
+def _move_tudo(sai, fica):
+    c = conn()
+    # config do WhatsApp e foto moram na conta: a que fica herda o que não tem
+    conta_sai = dict(c.execute("SELECT * FROM accounts WHERE id=?", (sai,)).fetchone())
+    conta_fica = dict(c.execute("SELECT * FROM accounts WHERE id=?", (fica,)).fetchone())
+    for col in _COLS_CONTA_HERDAVEIS:
+        if col in conta_sai and conta_sai[col] not in (None, "") \
+                and conta_fica.get(col) in (None, ""):
+            c.execute(f"UPDATE accounts SET {col}=? WHERE id=?", (conta_sai[col], fica))
+
+    # tabelas sem unique por conta: só repontar (triggers e jobs seguem pelo flow/sessão)
+    for t in ("rules", "flows", "events", "wa_mensagens", "transmissoes", "flow_sessions"):
+        c.execute(f"UPDATE {t} SET account_id=? WHERE account_id=?", (fica, sai))
+
+    # pastas de template: UNIQUE(account_id, nome) — mesma pasta vira uma
+    for p in c.execute("SELECT id, nome FROM wa_template_pastas WHERE account_id=?",
+                       (sai,)).fetchall():
+        igual = c.execute("SELECT id FROM wa_template_pastas WHERE account_id=? AND nome=?",
+                          (fica, p["nome"])).fetchone()
+        if igual:
+            c.execute("UPDATE wa_templates SET pasta_id=? WHERE pasta_id=?", (igual["id"], p["id"]))
+            c.execute("DELETE FROM wa_template_pastas WHERE id=?", (p["id"],))
+        else:
+            c.execute("UPDATE wa_template_pastas SET account_id=? WHERE id=?", (fica, p["id"]))
+
+    # templates: UNIQUE(account_id, nome, idioma) — espelho da Meta, fica o da conta
+    # que fica; só herda a pasta se ele não tiver
+    for t in c.execute("SELECT id, nome, idioma, pasta_id FROM wa_templates WHERE account_id=?",
+                       (sai,)).fetchall():
+        igual = c.execute("SELECT id, pasta_id FROM wa_templates WHERE account_id=? "
+                          "AND nome IS ? AND idioma IS ?", (fica, t["nome"], t["idioma"])).fetchone()
+        if igual:
+            if igual["pasta_id"] is None and t["pasta_id"] is not None:
+                c.execute("UPDATE wa_templates SET pasta_id=? WHERE id=?",
+                          (t["pasta_id"], igual["id"]))
+            c.execute("DELETE FROM wa_templates WHERE id=?", (t["id"],))
+        else:
+            c.execute("UPDATE wa_templates SET account_id=? WHERE id=?", (fica, t["id"]))
+
+    # leads: UNIQUE(account_id, igsid) e UNIQUE(account_id, wa_id) — a mesma pessoa
+    # nas duas linhas vira um lead só, com tudo dos dois
+    for lead in c.execute("SELECT * FROM leads WHERE account_id=?", (sai,)).fetchall():
+        lead = dict(lead)
+        par = c.execute("SELECT * FROM leads WHERE account_id=? AND igsid=?",
+                        (fica, lead["igsid"])).fetchone()
+        if not par and lead.get("wa_id"):
+            par = c.execute("SELECT * FROM leads WHERE account_id=? AND wa_id=?",
+                            (fica, lead["wa_id"])).fetchone()
+        if par:
+            _funde_lead(lead, dict(par))
+        else:
+            c.execute("UPDATE leads SET account_id=? WHERE id=?", (fica, lead["id"]))
+
+
+def _funde_lead(sai, fica):
+    """`sai` some dentro de `fica`. Contadores somam, datas pegam as pontas, a última
+    palavra-chave vem de quem interagiu por último, campo vazio herda do outro."""
+    c = conn()
+    novo = {}
+    novo["interactions"] = (sai.get("interactions") or 0) + (fica.get("interactions") or 0)
+    firsts = [x for x in (sai.get("first_ts"), fica.get("first_ts")) if x]
+    if firsts:
+        novo["first_ts"] = min(firsts)
+    sai_mais_novo = (sai.get("last_ts") or "") > (fica.get("last_ts") or "")
+    if sai_mais_novo:
+        novo["last_ts"] = sai["last_ts"]
+        if sai.get("last_keyword"):
+            novo["last_keyword"] = sai["last_keyword"]
+    for col in ("ig_janela_ate", "wa_janela_ate", "wa_optout_em"):
+        if col in sai and (sai.get(col) or "") > (fica.get(col) or ""):
+            novo[col] = sai[col]
+    fixas = {"id", "account_id", "igsid", "interactions", "first_ts", "last_ts",
+             "last_keyword", "ig_janela_ate", "wa_janela_ate", "wa_optout_em"}
+    for col, val in sai.items():
+        if col in fixas or val in (None, "") or fica.get(col) not in (None, ""):
+            continue
+        if col == "wa_id" and c.execute(
+                "SELECT 1 FROM leads WHERE account_id=? AND wa_id=? AND id<>?",
+                (fica["account_id"], val, fica["id"])).fetchone():
+            continue   # outro lead da conta já tem esse número
+        if col == "wa_id" and sai.get("wa_optin_em") and not fica.get("wa_optin_em"):
+            novo["wa_optin_em"] = sai["wa_optin_em"]
+            novo["wa_optin_origem"] = sai.get("wa_optin_origem") or ""
+        novo[col] = val
+    # o lead que sai larga o wa_id antes, senão o índice único reclama
+    c.execute("UPDATE leads SET wa_id='' WHERE id=?", (sai["id"],))
+    if novo:
+        sets = ", ".join(f"{k}=?" for k in novo)
+        c.execute(f"UPDATE leads SET {sets} WHERE id=?", (*novo.values(), fica["id"]))
+
+    c.execute("INSERT OR IGNORE INTO lead_tags (lead_id, tag, ts) "
+              "SELECT ?, tag, ts FROM lead_tags WHERE lead_id=?", (fica["id"], sai["id"]))
+    c.execute("INSERT OR IGNORE INTO lead_fields (lead_id, key, value, ts) "
+              "SELECT ?, key, value, ts FROM lead_fields WHERE lead_id=?", (fica["id"], sai["id"]))
+    c.execute("UPDATE flow_sessions SET lead_id=? WHERE lead_id=?", (fica["id"], sai["id"]))
+    c.execute("UPDATE wa_mensagens SET lead_id=? WHERE lead_id=?", (fica["id"], sai["id"]))
+    c.execute("UPDATE OR IGNORE wa_envios SET lead_id=? WHERE lead_id=?", (fica["id"], sai["id"]))
+    c.execute("DELETE FROM leads WHERE id=?", (sai["id"],))
 
 
 # ---------- rules ----------
