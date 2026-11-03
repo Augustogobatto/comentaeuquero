@@ -433,6 +433,30 @@ def purgar_eventos_antigos(dias: int) -> int:
 # ---------- accounts ----------
 
 def upsert_account(ig_id, ig_user_id, username, access_token, token_expires_at):
+    """Conta conectada pelo login do Instagram.
+
+    Caso comum: a mesma conta reconecta e cai na linha do mesmo `ig_id`. Se não há
+    linha com esse `ig_id` mas há uma no login do Facebook com o mesmo `ig_user_id`
+    (conta que nasceu no login unificado, onde ig_id = 1784..., e voltou pro login
+    do Instagram, que dá outro ig_id), a linha é essa: fluxos, leads e histórico
+    seguem. Linhas que já estão no login do Instagram não entram nessa busca: ali
+    nada muda em relação à 1.11.0.
+    """
+    ig_id, ig_user_id = str(ig_id), str(ig_user_id or "")
+    if ig_user_id and not conn().execute(
+            "SELECT 1 FROM accounts WHERE ig_id=?", (ig_id,)).fetchone():
+        r = conn().execute(
+            """SELECT id FROM accounts WHERE api_modo='facebook_login'
+                 AND (ig_user_id=? OR ig_id=?) ORDER BY id LIMIT 1""",
+            (ig_user_id, ig_user_id)).fetchone()
+        if r:
+            conn().execute(
+                """UPDATE accounts SET ig_id=?, ig_user_id=?, username=?, access_token=?,
+                     token_expires_at=?, api_modo='instagram_login', page_id=''
+                   WHERE id=?""",
+                (ig_id, ig_user_id, username or "", access_token, token_expires_at, r["id"]))
+            conn().commit()
+            return get_account(r["id"])
     conn().execute(
         """INSERT INTO accounts (ig_id, ig_user_id, username, access_token, token_expires_at)
            VALUES (?,?,?,?,?)
@@ -440,7 +464,7 @@ def upsert_account(ig_id, ig_user_id, username, access_token, token_expires_at):
              ig_user_id=excluded.ig_user_id, username=excluded.username,
              access_token=excluded.access_token, token_expires_at=excluded.token_expires_at,
              api_modo='instagram_login', page_id=''""",
-        (str(ig_id), str(ig_user_id or ""), username or "", access_token, token_expires_at))
+        (ig_id, ig_user_id, username or "", access_token, token_expires_at))
     conn().commit()
     return get_account_by_ig_id(ig_id)
 

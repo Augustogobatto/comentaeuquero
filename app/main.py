@@ -86,6 +86,13 @@ def meta_app_secret() -> str:
     return fb_app_secret() if login_modo() == instagram.MODO_FB else ig_app_secret()
 
 
+def app_do_modo(modo: str) -> tuple:
+    """(ID, chave secreta) do app de um modo específico, não do ativo agora."""
+    if modo == instagram.MODO_FB:
+        return fb_app_id(), fb_app_secret()
+    return ig_app_id(), ig_app_secret()
+
+
 def segredos_webhook_instagram() -> list:
     """Chaves que podem assinar um evento do Instagram. As duas, se as duas estão
     preenchidas: a conta conectada pode estar num modo e o painel já no outro (troca
@@ -118,7 +125,7 @@ ACTIVATION_URL = os.environ.get("ACTIVATION_URL", "https://ia.augustogobatto.com
 CHAO_URL = os.environ.get("CHAO_URL", "https://ia.augustogobatto.com").rstrip("/")
 
 # Versão do produto. Sobe junto com mudança que o dono da instância percebe.
-VERSAO = "1.11.0"
+VERSAO = "1.11.1"
 
 
 # Ativação (modo aviso): nunca bloqueia a ferramenta — só informa o status no painel.
@@ -711,14 +718,24 @@ def _resumo_webhook(payload):
 # a sessão do painel, e o `state` amarra a volta da Meta ao navegador que começou.
 
 OAUTH_STATE_COOKIE = "ceq_oauth_state"
+# Modo (instagram_login/facebook_login) em que a conexão COMEÇOU. Se o dono trocar
+# o modo em /config com a Meta aberta, a volta continua no modo da ida (o code só
+# vale no app que o emitiu). Sem este cookie (conexão começada na 1.11.0), vale o
+# modo ativo, como antes.
+OAUTH_MODO_COOKIE = "ceq_oauth_modo"
 
 
 @app.get("/auth/start")
 def auth_start(request: Request):
     if (r := require_login(request)):
         return r
+    # escolha de conta que ficou pra trás (tokens das candidatas) não sobrevive a
+    # uma conexão nova
+    if segredos.ler(OAUTH_PENDENTE):
+        segredos.guardar(OAUTH_PENDENTE, "")
+    modo = login_modo()
     app_id = meta_app_id()
-    fb = login_modo() == instagram.MODO_FB
+    fb = modo == instagram.MODO_FB
     if not (app_id and BASE_URL):
         campo = ("o ID do app da Meta (login unificado)" if fb
                  else "o ID do app do Instagram")
@@ -732,6 +749,8 @@ def auth_start(request: Request):
         else instagram.authorize_url(app_id, redirect_uri, state))
     # Lax: o cookie volta no redirecionamento de topo que a Meta faz pro callback
     resp.set_cookie(OAUTH_STATE_COOKIE, state, httponly=True, max_age=600,
+                    samesite="lax", secure=COOKIE_SEGURO)
+    resp.set_cookie(OAUTH_MODO_COOKIE, modo, httponly=True, max_age=600,
                     samesite="lax", secure=COOKIE_SEGURO)
     return resp
 
@@ -751,10 +770,14 @@ def auth_callback(request: Request, code: str = "", state: str = "", error: str 
                                             "desc": error_description[:300]})
         return PlainTextResponse(f"Erro no OAuth: {error[:100]} — {error_description[:300]}",
                                  status_code=400)
-    if login_modo() == instagram.MODO_FB:
+    modo = request.cookies.get(OAUTH_MODO_COOKIE, "")
+    if modo not in instagram.MODOS:
+        modo = login_modo()
+    if modo == instagram.MODO_FB:
         return _callback_fb(request, code, esperado)
+    app_id, app_secret = app_do_modo(modo)
     try:
-        info = instagram.exchange_code(meta_app_id(), meta_app_secret(),
+        info = instagram.exchange_code(app_id, app_secret,
                                       f"{BASE_URL}/auth/callback", code)
     except Exception as e:
         # o detalhe vai só pro log, e já sem segredo: a exceção do requests carrega a
@@ -766,6 +789,8 @@ def auth_callback(request: Request, code: str = "", state: str = "", error: str 
 
     account = db.upsert_account(info["ig_id"], info["ig_user_id"], info["username"],
                                 info["access_token"], info["token_expires_at"])
+    # conta que voltou do login unificado com a marca de token derrubado (190)
+    instagram.limpa_token_invalido(account["id"])
     try:
         _baixar_avatar(account)
     except Exception as e:
@@ -775,6 +800,7 @@ def auth_callback(request: Request, code: str = "", state: str = "", error: str 
                  payload={"permissions": info["permissions"], "webhook_sub": sub_ok})
     resp = RedirectResponse("/painel?conectado=1", status_code=303)
     resp.delete_cookie(OAUTH_STATE_COOKIE)
+    resp.delete_cookie(OAUTH_MODO_COOKIE)
     return resp
 
 
@@ -790,8 +816,9 @@ OAUTH_PENDENTE_S = 600
 
 
 def _callback_fb(request: Request, code: str, state: str):
+    app_id, app_secret = app_do_modo(instagram.MODO_FB)
     try:
-        candidatas = instagram.exchange_code_fb(meta_app_id(), meta_app_secret(),
+        candidatas = instagram.exchange_code_fb(app_id, app_secret,
                                                 f"{BASE_URL}/auth/callback", code)
     except instagram.SemContaInstagram as e:
         db.log_event("oauth_erro", payload={"erro": "sem_conta_instagram"})
@@ -820,6 +847,9 @@ def auth_escolher(request: Request, state: str = Form(""), ig: str = Form("")):
         pendente = json.loads(segredos.ler(OAUTH_PENDENTE) or "{}")
     except ValueError:
         pendente = {}
+    if pendente and float(pendente.get("ate", 0)) < time.time():
+        # venceu: os tokens das candidatas não ficam guardados à toa
+        segredos.guardar(OAUTH_PENDENTE, "")
     if (not esperado or not _iguais(state, esperado)
             or not _iguais(str(pendente.get("state", "")), esperado)
             or float(pendente.get("ate", 0)) < time.time()):
@@ -856,6 +886,7 @@ def _conectar_fb(c: dict, total: int):
     resp = RedirectResponse("/painel?conectado=1" if sub_ok else "/painel?conectado=sem_webhook",
                             status_code=303)
     resp.delete_cookie(OAUTH_STATE_COOKIE)
+    resp.delete_cookie(OAUTH_MODO_COOKIE)
     return resp
 
 
