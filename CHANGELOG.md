@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [1.11.2] - 2026-11-03
+
+### Corrigido — conta duplicada e aviso de reconectar
+- Quem passou pela 1.11.0 indo do login unificado pro login do Instagram ainda
+  tinha duas contas no banco, e reconectar na 1.11.1 não resolvia: o painel e o
+  webhook seguiam na conta antiga, com o acesso morto. Agora o CEQ junta as duas
+  sozinho ao atualizar: fica a conta conectada por último, e fluxos, leads (sem
+  repetir quem estava nas duas), tags, campos, templates e histórico vão junto.
+- Logo depois de reconectar, um envio ou uma verificação que já estava em
+  andamento com o acesso antigo podia trazer de volta o **Reconectar conta**. Agora
+  o aviso só aparece se o acesso que a Meta recusou é o que está valendo.
+- No login unificado, se a Meta devolvia um acesso de curta duração (1 a 2 horas),
+  a conta parava no mesmo dia. Agora ele é trocado na hora por um de 60 dias.
+
 ## [1.11.1] - 2026-11-03
 
 ### Corrigido — ida e volta entre o login unificado e o login do Instagram
