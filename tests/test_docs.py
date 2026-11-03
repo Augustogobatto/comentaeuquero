@@ -16,4 +16,4 @@ def test_docs_apontam_instalador_certo():
 
 def test_versao():
     from app import main
-    assert main.VERSAO == "1.10.1"
+    assert main.VERSAO == "1.11.0"

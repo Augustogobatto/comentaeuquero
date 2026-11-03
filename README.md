@@ -108,7 +108,7 @@ Detalhes: <https://comentaeuquero.com/tutoriais/conectar-claude>.
 - SQLite (um arquivo, no volume `/data`)
 - Editor de fluxo em Vue 3 + Vue Flow, compilado dentro da imagem
 - Docker; imagem publicada no ghcr e assinada com cosign (keyless)
-- API oficial do Instagram (login do Instagram, webhooks, private reply)
+- API oficial do Instagram (login unificado ou login do Instagram, webhooks, private reply)
 
 ## Rodar os testes
 

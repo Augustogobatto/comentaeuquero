@@ -55,7 +55,9 @@ ADMIN_PASSWORD=troque-por-uma-senha-forte
 # chave que cifra as credenciais da Meta salvas pelo painel
 CEQ_ENCRYPTION_KEY=
 
-# ID e chave secreta do app do Instagram (pode deixar vazio e preencher no painel)
+# App da Meta: pode deixar tudo vazio e preencher no painel (Configurações).
+# App novo (login unificado): META_LOGIN_MODO=facebook_login, META_FB_APP_ID,
+# META_FB_APP_SECRET e META_FB_CONFIG_ID. App antigo: as duas linhas abaixo.
 META_APP_ID=
 META_APP_SECRET=
 ```

@@ -3,6 +3,61 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [1.11.0] - 2026-11-03
+
+### Novo — Conectar o Instagram pelo login unificado (app novo da Meta)
+- Desde o fim de outubro de 2026 a Meta não oferece mais a "configuração da API com
+  login do Instagram" pra app novo ("Seu app usa a configuração da API com login
+  unificado"), e o login do instagram.com responde "Invalid platform app". Quem
+  instalava a 1.10.1 com app novo travava no passo do "ID do app do Instagram", que
+  não existe mais.
+- Novo modo de conexão por conta (`accounts.api_modo`): `instagram_login` (o de
+  sempre) ou `facebook_login`. Em **Configurações → App da Meta** o dono marca
+  **Login unificado** e cola o ID e a chave secreta do app geral e o ID da
+  configuração do login (`config_id`). Pelo `.env`: `META_LOGIN_MODO`,
+  `META_FB_APP_ID`, `META_FB_APP_SECRET`, `META_FB_CONFIG_ID`.
+- Conectar: diálogo do Facebook Login para Empresas com `config_id`
+  (`response_type=code`, sem `scope`), troca do code no graph.facebook.com e
+  contas em `/me/assigned_instagram_accounts`. O token é do sistema da empresa
+  (portfólio), não vence com validade "Nunca" e não tem refresh. Sem `config_id`,
+  vale o caminho clássico do login do Facebook: scopes, token longo, página com
+  `instagram_business_account` e token da página.
+- Mais de uma conta liberada: o painel pergunta qual. Os tokens das candidatas não
+  vão pro navegador: ficam cifrados no servidor por 10 minutos, presos ao `state`.
+- Envio e leitura no graph.facebook.com com o ID da conta no caminho: DM, private
+  reply, botões, opções rápidas, mídia, carrossel, resposta pública, perfil do
+  lead, foto do perfil e lista de posts. No caminho com página, a DM sai por
+  `/{page-id}/messages`.
+- Webhook: a conta é assinada em `/{ig-id}/subscribed_apps` (ou
+  `/{page-id}/subscribed_apps`). O evento chega como `object: instagram` com
+  `entry.id` = ID da conta profissional, e cai na conta certa nos dois modos. A
+  assinatura `X-Hub-Signature-256` é aceita com a chave do app do Instagram ou com
+  a do app geral.
+- Sem refresh de 60 dias no login unificado: o ciclo de 6h só confere se a Meta
+  ainda aceita o token. Erro 190 (token derrubado) marca a conta e o painel mostra
+  **Reconectar conta**, sem alerta repetido. Reconectar limpa a marca.
+- Conta que estava no login do Instagram e reconecta pelo unificado continua na
+  mesma linha: fluxos, leads e histórico ficam.
+- `/health`, o ping do chão e o `estado_da_conta` do MCP mostram "sem prazo"
+  (`null`) em vez de dias negativos no login unificado.
+
+### Sem mudança pra quem já está conectado
+- Conta conectada pelo login do Instagram segue idêntica: graph.instagram.com,
+  token de 60 dias com refresh, mesmos endpoints e mesma chave do webhook. Sem
+  escolha no painel, o modo continua sendo o login do Instagram.
+
+### Documentação
+- Tutorial "Criar o app da Meta" refeito pro login unificado (portfólio
+  empresarial, configuração com `business_management`, `config_id`, URL de
+  redirecionamento, webhook com os quatro campos marcados, testador pelo
+  navegador), com o caminho antigo em "Se seu app é antigo".
+
+### Ainda não provado com app real da Meta
+- Testes cobrem o fluxo com a Meta simulada. Falta conferir ponta a ponta com um
+  app criado hoje: envio de DM/private reply por `/{ig-id}/messages` com o token do
+  sistema, perfil do lead (`is_user_follow_business`) e chegada de comentário sem
+  Acesso Avançado.
+
 ## [1.10.1] - 2026-10-31
 
 ### Corrigido — Toque duplo no botão não mata mais o fluxo

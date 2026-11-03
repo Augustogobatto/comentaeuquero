@@ -10,8 +10,12 @@ Todas as variáveis que a instância lê. Depois de mudar o `.env`, rode `docker
 | `WEBHOOK_VERIFY_TOKEN` | `troque-este-token` | Texto que você inventa e cola igual no webhook da Meta. Troque o padrão. |
 | `ADMIN_PASSWORD` | vazio | Senha do painel. Se estiver preenchida, vale mais que a senha criada no primeiro acesso. |
 | `CEQ_ENCRYPTION_KEY` | vazio | Chave que cifra as credenciais salvas pelo painel. Sem ela, ficam sem cifra e o painel avisa. [Como gerar](/instalar/docker#_2-crie-a-pasta-e-os-dois-arquivos). |
-| `META_APP_ID` | vazio | ID do app do Instagram. Se preenchido, vale mais que o do painel. |
-| `META_APP_SECRET` | vazio | Chave secreta do app do Instagram. Sem ela (aqui ou no painel), todos os eventos são recusados. |
+| `META_LOGIN_MODO` | vazio | Como conectar o Instagram: `facebook_login` (login unificado, app novo) ou `instagram_login` (app antigo). Vazio = o escolhido no painel; sem escolha, login do Instagram. |
+| `META_FB_APP_ID` | vazio | Login unificado: ID do aplicativo (app geral, Configurações do app → Básico). |
+| `META_FB_APP_SECRET` | vazio | Login unificado: chave secreta do aplicativo (app geral). Assina os eventos da Meta. |
+| `META_FB_CONFIG_ID` | vazio | Login unificado: ID da configuração do login (`config_id`). Não é segredo. |
+| `META_APP_ID` | vazio | Login do Instagram (app antigo): ID do app do Instagram. Se preenchido, vale mais que o do painel. |
+| `META_APP_SECRET` | vazio | Login do Instagram (app antigo): chave secreta do app do Instagram. Sem a chave do modo em uso (aqui ou no painel), todos os eventos são recusados. |
 
 ## IA
 

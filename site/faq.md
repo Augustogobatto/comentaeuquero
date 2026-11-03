@@ -4,7 +4,7 @@
 
 ### É permitido pela Meta?
 
-Sim. O comenta EU QUERO usa a API oficial do Instagram (com login do Instagram) e a Cloud API oficial do WhatsApp, com as permissões oficiais e dentro das regras de janela de cada uma. É o mesmo mecanismo que as ferramentas pagas usam. Como o app da Meta é seu e você usa na sua própria conta, não precisa de análise da Meta.
+Sim. O comenta EU QUERO usa a API oficial do Instagram (com o login unificado da Meta ou, em app antigo, o login do Instagram) e a Cloud API oficial do WhatsApp, com as permissões oficiais e dentro das regras de janela de cada uma. É o mesmo mecanismo que as ferramentas pagas usam. Como o app da Meta é seu e você usa na sua própria conta, não precisa de análise da Meta.
 
 ### Por que a mensagem não chegou?
 
