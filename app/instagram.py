@@ -1,8 +1,23 @@
-"""Cliente da Instagram API (with Instagram Login) — Graph em graph.instagram.com."""
+"""Cliente da API do Instagram, nos dois jeitos de conectar que a Meta oferece.
+
+- `instagram_login` (o de sempre): login do Instagram, Graph em graph.instagram.com,
+  token do Instagram de 60 dias que a instância renova sozinha.
+- `facebook_login` (1.11.0): o login unificado que a Meta impõe aos apps novos
+  (Facebook Login para Empresas com `config_id`). Graph em graph.facebook.com, com o
+  ID da conta profissional no caminho. O token é do sistema da empresa (Business
+  Integration System User), sem renovação de 60 dias. O mesmo modo cobre o caminho
+  clássico "API do Instagram com login do Facebook" (página do Facebook ligada à
+  conta), em que o token é o da página.
+
+Cada conta guarda o próprio modo (`accounts.api_modo`). Toda função que fala com a
+Meta recebe a conta e tira dela a base, o token e o nó certo; conta antiga, sem
+coluna preenchida, segue exatamente pelo caminho de antes.
+"""
 import calendar
 import json as _json
 import re
 import time
+from urllib.parse import urlencode
 
 import requests
 
@@ -12,6 +27,65 @@ GRAPH = "https://graph.instagram.com/v23.0"
 OAUTH_AUTHORIZE = "https://www.instagram.com/oauth/authorize"
 OAUTH_TOKEN = "https://api.instagram.com/oauth/access_token"
 SCOPES = "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments"
+
+# Login unificado / login do Facebook. Mesma versão da Graph do resto do código.
+GRAPH_FB = "https://graph.facebook.com/v23.0"
+FB_DIALOG = "https://www.facebook.com/v23.0/dialog/oauth"
+# Só usados quando o app não tem `config_id` (app antigo com "login do Facebook"
+# clássico). Com config_id, quem decide as permissões é a configuração na Meta.
+SCOPES_FB = ("instagram_basic,instagram_manage_messages,instagram_manage_comments,"
+             "pages_show_list,pages_read_engagement,pages_manage_metadata,business_management")
+
+MODO_IG = "instagram_login"
+MODO_FB = "facebook_login"
+MODOS = (MODO_IG, MODO_FB)
+
+# Campos de webhook assinados por conta. No login unificado a doc lista estes quatro
+# (comments, live_comments, messages, messaging_postbacks) com as permissões
+# instagram_manage_comments / instagram_manage_messages.
+CAMPOS_WEBHOOK = "comments,live_comments,messages,messaging_postbacks"
+# Caminho da página: a assinatura é da PÁGINA no app; os campos do Instagram em si
+# são os marcados no painel da Meta. `feed` só liga a página ao app (pede
+# pages_manage_metadata, que já está nos scopes).
+CAMPOS_WEBHOOK_PAGINA = "feed"
+
+
+def modo(account) -> str:
+    """Modo de conexão da conta. Vazio (conta de antes da 1.11) = login do Instagram."""
+    m = (account or {}).get("api_modo") or MODO_IG
+    return m if m in MODOS else MODO_IG
+
+
+def e_fb(account) -> bool:
+    return modo(account) == MODO_FB
+
+
+def base(account) -> str:
+    return GRAPH_FB if e_fb(account) else GRAPH
+
+
+def no_ig(account) -> str:
+    """ID da conta profissional pra pôr no caminho. No login do Instagram é o `ig_id`
+    (o que o código sempre usou); no do Facebook, o ID 1784... que a Meta devolveu."""
+    if e_fb(account):
+        return str(account.get("ig_user_id") or account.get("ig_id") or "")
+    return str(account["ig_id"])
+
+
+def no_mensagens(account) -> str:
+    """Quem envia a DM. Caminho da página: /{page-id}/messages com o token da
+    página (doc do Messenger para Instagram). Login unificado e login do Instagram:
+    /{ig-id}/messages."""
+    if e_fb(account) and account.get("page_id"):
+        return str(account["page_id"])
+    return no_ig(account)
+
+
+def _conta_e_token(conta_ou_token):
+    """Aceita a conta (dict) ou, como antes da 1.11, só o token do Instagram."""
+    if isinstance(conta_ou_token, dict):
+        return conta_ou_token, conta_ou_token.get("access_token", "")
+    return {}, conta_ou_token or ""
 
 
 _SEGREDO_NA_URL = re.compile(
@@ -66,17 +140,196 @@ def exchange_code(app_id, app_secret, redirect_uri, code):
     }
 
 
-def subscribe_webhooks(access_token,
-                       fields="comments,live_comments,messages,messaging_postbacks"):
+# ---------- login unificado / login do Facebook ----------
+
+class SemContaInstagram(Exception):
+    """A autorização deu certo, mas nenhuma conta profissional do Instagram veio
+    junto. A mensagem é pra tela do dono, sem nada técnico nem segredo."""
+
+
+def authorize_url_fb(app_id: str, redirect_uri: str, state: str, config_id: str = "") -> str:
+    """Diálogo do Facebook Login para Empresas.
+
+    Com `config_id` (o caso de todo app novo): a configuração decide permissões e
+    ativos, e `scope` não vai (a doc do login unificado não usa; apps novos
+    respondem "Invalid Scopes" a ele). `prompt=login` mostra as duas opções de
+    entrada, Facebook e Instagram, em vez de seguir calado com o Facebook já aberto
+    no navegador. Sem `config_id`: login do Facebook clássico, com a lista de scopes.
+    """
+    params = {"client_id": app_id, "redirect_uri": redirect_uri,
+              "response_type": "code", "state": state}
+    if config_id:
+        params.update(config_id=config_id, prompt="login")
+    else:
+        params["scope"] = SCOPES_FB
+    return f"{FB_DIALOG}?{urlencode(params)}"
+
+
+def _expira_em(expires_in):
+    try:
+        segundos = int(expires_in or 0)
+    except (TypeError, ValueError):
+        segundos = 0
+    if segundos <= 0:
+        return None   # sem prazo (token do sistema "Nunca" ou token de página)
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + segundos))
+
+
+def _corpo(r):
+    try:
+        corpo = r.json()
+    except ValueError:
+        return {}
+    return corpo if isinstance(corpo, dict) else {}
+
+
+def _get_fb(caminho, token, **params):
+    r = requests.get(f"{GRAPH_FB}/{caminho}", params={**params, "access_token": token},
+                     timeout=30)
+    return r.status_code, _corpo(r)
+
+
+def exchange_code_fb(app_id, app_secret, redirect_uri, code) -> list:
+    """code -> token -> contas do Instagram que o dono liberou. Devolve a lista de
+    candidatas, cada uma pronta pra virar conta:
+      {ig_user_id, username, page_id, page_nome, access_token, token_expires_at}
+
+    1. Login unificado (app novo): o token é do sistema da empresa e as contas vêm
+       de /me/assigned_instagram_accounts. Sem página, sem renovação de 60 dias.
+    2. Se não vier conta por ali, é o login do Facebook clássico: o token é de
+       usuário, vira token longo, e as contas vêm das páginas (/me/accounts) que têm
+       instagram_business_account. Token de página tirado de token longo não vence.
+    """
+    r = requests.get(f"{GRAPH_FB}/oauth/access_token", params={
+        "client_id": app_id, "client_secret": app_secret,
+        "redirect_uri": redirect_uri, "code": code}, timeout=30)
+    r.raise_for_status()
+    tok = r.json()
+    token = tok["access_token"]
+
+    status, corpo = _get_fb("me/assigned_instagram_accounts", token,
+                            fields="id,username", limit=100)
+    contas = [c for c in (corpo.get("data") or []) if c.get("id")] if status == 200 else []
+    if contas:
+        expira = _expira_em(tok.get("expires_in"))
+        return [{"ig_user_id": str(c["id"]), "username": c.get("username", ""),
+                 "page_id": "", "page_nome": "", "access_token": token,
+                 "token_expires_at": expira} for c in contas]
+
+    # caminho clássico: token de usuário -> longo -> páginas
+    longo = token
+    r2 = requests.get(f"{GRAPH_FB}/oauth/access_token", params={
+        "grant_type": "fb_exchange_token", "client_id": app_id,
+        "client_secret": app_secret, "fb_exchange_token": token}, timeout=30)
+    if r2.status_code == 200:
+        longo = _corpo(r2).get("access_token") or token
+    status, corpo = _get_fb("me/accounts", longo,
+                            fields="id,name,access_token,instagram_business_account",
+                            limit=100)
+    candidatas = []
+    for pg in (corpo.get("data") or []) if status == 200 else []:
+        ig = (pg.get("instagram_business_account") or {}).get("id")
+        if not (ig and pg.get("access_token")):
+            continue
+        _, perfil = _get_fb(str(ig), pg["access_token"], fields="username")
+        candidatas.append({"ig_user_id": str(ig), "username": perfil.get("username", ""),
+                           "page_id": str(pg.get("id", "")), "page_nome": pg.get("name", ""),
+                           "access_token": pg["access_token"], "token_expires_at": None})
+    if not candidatas:
+        raise SemContaInstagram(
+            "A Meta autorizou, mas nenhuma conta profissional do Instagram veio junto. "
+            "Na tela da Meta, escolha o portfólio empresarial e marque a conta do "
+            "Instagram. Se ela não aparece, confira se é conta Profissional (Empresa ou "
+            "Criador) e, no app da Meta, se a configuração do login inclui a permissão "
+            "business_management.")
+    return candidatas
+
+
+def subscribe_webhooks(conta_ou_token, fields=CAMPOS_WEBHOOK):
     """live_comments só notifica durante a transmissão; messaging_postbacks traz o
-    clique em botão do fluxo. Ambos exigem que o app esteja publicado."""
+    clique em botão do fluxo. Ambos exigem que o app esteja publicado.
+
+    Login do Instagram: /me/subscribed_apps no graph.instagram.com. Login unificado:
+    /{ig-id}/subscribed_apps no graph.facebook.com com o token do sistema. Caminho
+    da página: /{page-id}/subscribed_apps com o token da página."""
+    conta, access_token = _conta_e_token(conta_ou_token)
+    if e_fb(conta):
+        if conta.get("page_id"):
+            url, fields = f"{GRAPH_FB}/{conta['page_id']}/subscribed_apps", CAMPOS_WEBHOOK_PAGINA
+        else:
+            url = f"{GRAPH_FB}/{no_ig(conta)}/subscribed_apps"
+        r = requests.post(url, data={"subscribed_fields": fields,
+                                     "access_token": access_token}, timeout=30)
+        _confere_token(conta, _corpo(r))
+        return r.status_code == 200, sem_segredo(r.text[:300])
     r = requests.post(f"{GRAPH}/me/subscribed_apps", params={
         "subscribed_fields": fields, "access_token": access_token}, timeout=30)
     return r.status_code == 200, r.text[:300]
 
 
+# ---------- token que a Meta derrubou (erro 190) ----------
+#
+# No login unificado não há renovação: o token vale até o dono tirar o app do
+# portfólio, mudar a conta de portfólio ou a Meta revogar. Aí a Meta responde 190,
+# e insistir não resolve: o painel passa a pedir "Reconectar". Conta no login do
+# Instagram não usa essa marca (lá o refresh de 60 dias segue como sempre).
+
+CODIGO_TOKEN_INVALIDO = 190
+
+
+def _confere_token(conta, body) -> None:
+    if not (conta and e_fb(conta) and conta.get("id")):
+        return
+    if _codigo_erro(body) != CODIGO_TOKEN_INVALIDO:
+        return
+    if not token_invalido(conta):
+        msg = str(((body or {}).get("error") or {}).get("message", ""))
+        db.log_event("token_invalido", conta["id"], ok=False,
+                     payload={"detalhe": sem_segredo(msg)[:200]})
+    db.set_ajuste(f"token_invalido:{conta['id']}", db.in_seconds_iso(0))
+
+
+def token_invalido(conta) -> bool:
+    return bool(conta and conta.get("id") and db.get_ajuste(f"token_invalido:{conta['id']}"))
+
+
+def limpa_token_invalido(conta_id) -> None:
+    db.set_ajuste(f"token_invalido:{conta_id}", "")
+
+
+def verificar_token(conta) -> bool:
+    """Leitura barata pra descobrir token derrubado sem esperar o próximo envio.
+    Só no login do Facebook; devolve True se a Meta aceitou."""
+    if not e_fb(conta):
+        return True
+    try:
+        status, corpo = _get_fb(no_ig(conta), conta["access_token"], fields="username")
+    except requests.RequestException:
+        return True   # rede fora não é token inválido
+    _confere_token(conta, corpo)
+    if status == 200:
+        limpa_token_invalido(conta["id"])
+    return status == 200
+
+
+def token_status(conta) -> dict:
+    """Situação do acesso pro painel, /health, MCP e ping do chão:
+    {valido, dias (None = sem prazo), renova (o CEQ renova sozinho?)}."""
+    if not conta:
+        return {"valido": False, "dias": None, "renova": False}
+    if e_fb(conta):
+        dias = token_days_left(conta) if conta.get("token_expires_at") else None
+        valido = not token_invalido(conta) and (dias is None or dias > 0)
+        return {"valido": valido, "dias": dias, "renova": False}
+    dias = token_days_left(conta)
+    return {"valido": dias > 0, "dias": dias, "renova": True}
+
+
 def refresh_token(account: dict) -> tuple:
-    """Renova token longo (precisa ter 24h+ de idade). Retorna (ok, detalhe)."""
+    """Renova token longo (precisa ter 24h+ de idade). Retorna (ok, detalhe).
+    Só existe no login do Instagram: no do Facebook não há o que renovar."""
+    if e_fb(account):
+        return False, "sem renovação no login do Facebook"
     r = requests.get("https://graph.instagram.com/refresh_access_token", params={
         "grant_type": "ig_refresh_token", "access_token": account["access_token"]}, timeout=30)
     if r.status_code == 200:
@@ -96,10 +349,13 @@ def token_days_left(account: dict) -> float:
         return -1
 
 
-def fetch_own_pic(access_token) -> str:
-    """Foto de perfil da própria conta conectada."""
+def fetch_own_pic(conta_ou_token) -> str:
+    """Foto de perfil da própria conta conectada. No login do Facebook, /me é o
+    usuário do sistema (ou a página): a foto vem do nó da conta do Instagram."""
+    conta, access_token = _conta_e_token(conta_ou_token)
+    no = no_ig(conta) if e_fb(conta) else "me"
     try:
-        r = requests.get(f"{GRAPH}/me", params={
+        r = requests.get(f"{base(conta)}/{no}", params={
             "fields": "profile_picture_url", "access_token": access_token}, timeout=15)
         if r.status_code == 200:
             return r.json().get("profile_picture_url", "")
@@ -119,11 +375,12 @@ def download_pic(url) -> bytes:
     return b""
 
 
-def fetch_profile(access_token, igsid) -> dict:
+def fetch_profile(conta_ou_token, igsid) -> dict:
     """Perfil de quem interage (User Profile API): nome, @, foto, seguidores, segue-você.
     Retorna {} se a API não permitir (ex.: alguns comentaristas)."""
+    conta, access_token = _conta_e_token(conta_ou_token)
     try:
-        r = requests.get(f"{GRAPH}/{igsid}", params={
+        r = requests.get(f"{base(conta)}/{igsid}", params={
             "fields": "name,username,profile_pic,follower_count,is_user_follow_business",
             "access_token": access_token}, timeout=15)
         if r.status_code == 200:
@@ -133,9 +390,10 @@ def fetch_profile(access_token, igsid) -> dict:
     return {}
 
 
-def fetch_username(access_token, igsid) -> str:
+def fetch_username(conta_ou_token, igsid) -> str:
+    conta, access_token = _conta_e_token(conta_ou_token)
     try:
-        r = requests.get(f"{GRAPH}/{igsid}", params={
+        r = requests.get(f"{base(conta)}/{igsid}", params={
             "fields": "username", "access_token": access_token}, timeout=15)
         if r.status_code == 200:
             return r.json().get("username", "")
@@ -204,11 +462,12 @@ def _entra_em_cooldown(segundos: float, origem: str) -> None:
                       f"Fila reagendada, volta em ~{max(1, int(segundos / 60))} min.")
 
 
-def post_with_retry(url, access_token, payload, timeout=30):
+def post_with_retry(url, access_token, payload, timeout=30, conta=None):
     """POST com detecção de throttle da Meta e 1 retry em erro transitório.
 
     Retorna (ok, status, body). ok=None não é falha: significa "não enviei porque a
     instância está em cooldown"; o chamador reagenda em vez de descartar.
+    Com `conta` no login do Facebook, erro 190 marca a conta pra reconectar.
     """
     resta = cooldown_restante()
     if resta > 0:
@@ -226,6 +485,7 @@ def post_with_retry(url, access_token, payload, timeout=30):
             if _codigo_erro(body) in CODIGOS_THROTTLE or r.status_code == 429:
                 _entra_em_cooldown(_espera_sugerida(r.headers), f"http {r.status_code}")
                 return None, r.status_code, body
+            _confere_token(conta, body)
             if r.status_code in (500, 503) and attempt == 1:
                 time.sleep(10)
                 continue
@@ -237,19 +497,25 @@ def post_with_retry(url, access_token, payload, timeout=30):
     return False, 0, "unreachable"
 
 
+def _url_mensagens(account) -> str:
+    return f"{base(account)}/{no_mensagens(account)}/messages"
+
+
 def send_private_reply(account, comment_id, text):
-    return post_with_retry(f"{GRAPH}/{account['ig_id']}/messages", account["access_token"],
-                           {"recipient": {"comment_id": comment_id}, "message": {"text": text}})
+    return post_with_retry(_url_mensagens(account), account["access_token"],
+                           {"recipient": {"comment_id": comment_id}, "message": {"text": text}},
+                           conta=account)
 
 
 def send_dm(account, recipient_id, text):
-    return post_with_retry(f"{GRAPH}/{account['ig_id']}/messages", account["access_token"],
-                           {"recipient": {"id": recipient_id}, "message": {"text": text}})
+    return post_with_retry(_url_mensagens(account), account["access_token"],
+                           {"recipient": {"id": recipient_id}, "message": {"text": text}},
+                           conta=account)
 
 
 def send_public_reply(account, comment_id, text):
-    return post_with_retry(f"{GRAPH}/{comment_id}/replies", account["access_token"],
-                           {"message": text})
+    return post_with_retry(f"{base(account)}/{comment_id}/replies", account["access_token"],
+                           {"message": text}, conta=account)
 
 
 # ---------- mensagens ricas (motor de fluxo) ----------
@@ -268,8 +534,8 @@ LIMITE_TITULO_BOTAO = 20   # recomendação da Meta; acima disso o app corta na 
 
 
 def _send(account, recipient, message):
-    return post_with_retry(f"{GRAPH}/{account['ig_id']}/messages", account["access_token"],
-                           {"recipient": recipient, "message": message})
+    return post_with_retry(_url_mensagens(account), account["access_token"],
+                           {"recipient": recipient, "message": message}, conta=account)
 
 
 def truncate(text: str, limit: int = TEXT_LIMIT) -> str:
@@ -377,10 +643,12 @@ def send_carousel(account, recipient, elements):
             "template_type": "generic", "elements": payload_elements}}})
 
 
-def fetch_media_list(access_token, limit=25):
+def fetch_media_list(conta_ou_token, limit=25):
     """Posts e Reels da conta — alimenta o seletor de 'post específico' no editor."""
+    conta, access_token = _conta_e_token(conta_ou_token)
+    no = no_ig(conta) if e_fb(conta) else "me"
     try:
-        r = requests.get(f"{GRAPH}/me/media", params={
+        r = requests.get(f"{base(conta)}/{no}/media", params={
             "fields": "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp",
             "limit": limit, "access_token": access_token}, timeout=20)
         if r.status_code == 200:

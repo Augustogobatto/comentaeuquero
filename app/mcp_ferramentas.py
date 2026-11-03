@@ -441,7 +441,7 @@ def estado_da_conta() -> dict:
     if not conta:
         return {"instagram_conectado": False, "versao": VERSAO,
                 "chave_secreta_meta_configurada": bool(meta_app_secret())}
-    dias = instagram.token_days_left(conta)
+    st = instagram.token_status(conta)
     wa = wa_estado(conta)
     if wa.get("configurado"):
         wa["chave_secreta_whatsapp_configurada"] = bool(meta_wa_app_secret())
@@ -450,8 +450,12 @@ def estado_da_conta() -> dict:
         "versao": VERSAO,
         "instagram_conectado": True,
         "instagram_usuario": conta.get("username") or "",
-        "token_instagram_valido": dias > 0,
-        "token_instagram_dias_restantes": round(dias, 1),
+        "token_instagram_valido": st["valido"],
+        # None = sem prazo (login unificado)
+        "token_instagram_dias_restantes": None if st["dias"] is None else round(st["dias"], 1),
+        **({"login_meta": instagram.MODO_FB,
+            "precisa_reconectar": instagram.token_invalido(conta)}
+           if instagram.e_fb(conta) else {}),
         "chave_secreta_meta_configurada": bool(meta_app_secret()),
         "teto_envios_por_hora": runtime.teto_atual(),
         "envios_na_ultima_hora": db.envios_na_ultima_hora(conta["id"]),

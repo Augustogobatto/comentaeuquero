@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Escolha a conta — comenta EU QUERO{% endblock %}
+{% block largura %}estreita{% endblock %}
+{% block content %}
+<div class="cabeca"><div><h1>Qual conta do Instagram?</h1>
+<p class="sub" style="margin:0;">Você liberou mais de uma conta na Meta. Esta instalação atende uma conta só: escolha qual. Pra outra conta, suba outra instalação.</p></div></div>
+
+<div class="card">
+  <form method="post" action="/auth/escolher">
+    <input type="hidden" name="state" value="{{ state }}">
+    {% for c in contas %}
+    <label class="check"><input type="radio" name="ig" value="{{ c.id }}"{% if loop.first %} checked{% endif %}>
+      <b>@{{ c.username or c.id }}</b>{% if c.pagina %} <span class="sub">página {{ c.pagina }}</span>{% endif %}</label>
+    {% endfor %}
+    <button type="submit" class="largo" style="margin-top:20px;">Conectar esta conta</button>
+  </form>
+  <p class="sub">A escolha vale por 10 minutos. Depois disso, clique em Conectar Instagram de novo.</p>
+</div>
+{% endblock %}

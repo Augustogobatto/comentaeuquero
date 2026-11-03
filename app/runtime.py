@@ -463,7 +463,7 @@ def _refresh_seguidor(account, lead):
     """O status de seguidor é gravado no primeiro contato e envelhece: quem seguiu
     no meio do fluxo continuaria constando como não-seguidor. Reconsulta na hora
     do check. Se a API esconder o perfil (alguns comentaristas), mantém o que tem."""
-    perfil = instagram.fetch_profile(account["access_token"], lead["igsid"])
+    perfil = instagram.fetch_profile(account, lead["igsid"])
     if perfil:
         db.enrich_lead(account["id"], lead["igsid"], perfil)
         return db.get_lead(lead["id"]) or lead

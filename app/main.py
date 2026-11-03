@@ -35,12 +35,62 @@ CLUB_TOKEN = os.environ.get("CLUB_TOKEN", "")
 # ID e chave secreta do app da Meta: o .env tem precedência (instâncias antigas);
 # sem ele, valem os que o dono colou em /config (cifrados em `ajustes`). Funções e
 # não constantes, porque mudam ao vivo quando o dono salva a configuração.
-def meta_app_id() -> str:
+#
+# São dois pares, um por jeito de conectar (ver instagram.py):
+# - login do Instagram (o de sempre): META_APP_ID / META_APP_SECRET, que são o ID e
+#   a chave "do app do Instagram" da página de configuração da API.
+# - login do Facebook / unificado (apps novos, 1.11.0): META_FB_APP_ID /
+#   META_FB_APP_SECRET, o ID e a chave do app GERAL (Configurações do app → Básico),
+#   mais o META_FB_CONFIG_ID da configuração do Login do Facebook para Empresas.
+# meta_app_id()/meta_app_secret() devolvem o par do modo ativo.
+
+def ig_app_id() -> str:
     return os.environ.get("META_APP_ID", "") or segredos.ler("meta_app_id")
 
 
-def meta_app_secret() -> str:
+def ig_app_secret() -> str:
     return os.environ.get("META_APP_SECRET", "") or segredos.ler("meta_app_secret")
+
+
+def fb_app_id() -> str:
+    return os.environ.get("META_FB_APP_ID", "") or segredos.ler("meta_fb_app_id")
+
+
+def fb_app_secret() -> str:
+    return os.environ.get("META_FB_APP_SECRET", "") or segredos.ler("meta_fb_app_secret")
+
+
+def fb_config_id() -> str:
+    # não é segredo (a própria Meta diz isso), mas mora junto dos outros
+    return os.environ.get("META_FB_CONFIG_ID", "") or segredos.ler("meta_fb_config_id")
+
+
+def login_modo() -> str:
+    """Como o botão "Conectar Instagram" conecta: escolhido em /config (ou
+    META_LOGIN_MODO no .env). Sem escolha, vale o login do Instagram, a não ser que
+    só o par do Facebook esteja preenchido. Instância antiga cai sempre no de antes."""
+    escolhido = (os.environ.get("META_LOGIN_MODO", "")
+                 or db.get_ajuste("meta_login_modo", "") or "").strip()
+    if escolhido in instagram.MODOS:
+        return escolhido
+    if fb_app_id() and not ig_app_id():
+        return instagram.MODO_FB
+    return instagram.MODO_IG
+
+
+def meta_app_id() -> str:
+    return fb_app_id() if login_modo() == instagram.MODO_FB else ig_app_id()
+
+
+def meta_app_secret() -> str:
+    return fb_app_secret() if login_modo() == instagram.MODO_FB else ig_app_secret()
+
+
+def segredos_webhook_instagram() -> list:
+    """Chaves que podem assinar um evento do Instagram. As duas, se as duas estão
+    preenchidas: a conta conectada pode estar num modo e o painel já no outro (troca
+    de app em andamento), e as duas são do próprio dono."""
+    return [s for s in (ig_app_secret(), fb_app_secret()) if s]
 
 
 # O WhatsApp assina o webhook com a chave secreta do app GERAL da Meta; a do campo
@@ -97,8 +147,15 @@ def _saude() -> dict:
         pass
     try:
         account = db.first_account()
-        saude["token_meta_dias"] = (round(instagram.token_days_left(account), 1)
-                                    if account else None)
+        if account and instagram.e_fb(account):
+            # sem prazo não é "0 dias": vai None e o modo, pra central não alarmar
+            st = instagram.token_status(account)
+            saude["token_meta_dias"] = None if st["dias"] is None else round(st["dias"], 1)
+            saude["token_meta_valido"] = st["valido"]
+            saude["login_meta"] = instagram.MODO_FB
+        else:
+            saude["token_meta_dias"] = (round(instagram.token_days_left(account), 1)
+                                        if account else None)
     except Exception:
         pass
     return saude
@@ -447,7 +504,7 @@ async def startup():
     asyncio.get_event_loop().run_in_executor(None, _atualizar_estado_wa)
 
 
-def _baixar_avatar(account_id, access_token) -> bool:
+def _baixar_avatar(account) -> bool:
     """Baixa o JPEG da foto de perfil pro volume de dados e aponta o painel pra ele.
 
     A URL do CDN do Instagram vem assinada com prazo de validade: guardar o link
@@ -456,7 +513,8 @@ def _baixar_avatar(account_id, access_token) -> bool:
     rename — nunca fica avatar pela metade — e falha de rede não apaga a cópia
     que já funciona.
     """
-    url = instagram.fetch_own_pic(access_token)
+    url = instagram.fetch_own_pic(account)
+    account_id = account["id"]
     dados = instagram.download_pic(url) if url else b""
     if not dados:
         return False
@@ -474,7 +532,7 @@ def _atualizar_fotos():
     local continua servindo."""
     for account in db.all_accounts():
         try:
-            _baixar_avatar(account["id"], account["access_token"])
+            _baixar_avatar(account)
         except Exception as e:
             db.log_event("foto_perfil", account["id"], ok=False,
                          payload={"erro": instagram.sem_segredo(e)[:200]})
@@ -490,7 +548,7 @@ def _resubscrever_webhooks():
     """
     for account in db.all_accounts():
         try:
-            ok, detalhe = instagram.subscribe_webhooks(account["access_token"])
+            ok, detalhe = instagram.subscribe_webhooks(account)
             db.log_event("subscribe_webhooks", account["id"], ok=ok,
                          payload={"detalhe": detalhe[:300]})
         except Exception as e:
@@ -526,17 +584,32 @@ async def _token_refresh_loop():
         await asyncio.get_event_loop().run_in_executor(None, check_license)
         await asyncio.get_event_loop().run_in_executor(None, _atualizar_fotos)
         await asyncio.get_event_loop().run_in_executor(None, _atualizar_estado_wa)
-        for account in db.all_accounts():
-            try:
-                if 0 < instagram.token_days_left(account) < 50:
-                    ok, detail = instagram.refresh_token(account)
-                    db.log_event("token_refresh", account["id"], ok=ok, payload={"detail": detail})
-            except Exception as e:  # nunca derrubar o loop
-                db.log_event("token_refresh", account["id"], ok=False,
-                             payload={"erro": instagram.sem_segredo(e)[:300]})
+        await asyncio.get_event_loop().run_in_executor(None, _renovar_tokens)
+
+
+def _renovar_tokens():
+    for account in db.all_accounts():
+        try:
+            if instagram.e_fb(account):
+                # login do Facebook: não há refresh de 60 dias. Só confere se a Meta
+                # ainda aceita o token; 190 vira "Reconectar" no painel, sem alerta.
+                instagram.verificar_token(account)
+                continue
+            if 0 < instagram.token_days_left(account) < 50:
+                ok, detail = instagram.refresh_token(account)
+                db.log_event("token_refresh", account["id"], ok=ok, payload={"detail": detail})
+        except Exception as e:  # nunca derrubar o loop
+            db.log_event("token_refresh", account["id"], ok=False,
+                         payload={"erro": instagram.sem_segredo(e)[:300]})
 
 
 # ---------- público ----------
+
+def _dias_publicos(account):
+    """Dias de token pra mostrar. None = sem prazo (login do Facebook)."""
+    st = instagram.token_status(account)
+    return None if st["dias"] is None else round(st["dias"], 1)
+
 
 @app.get("/health")
 def health(request: Request):
@@ -551,7 +624,8 @@ def health(request: Request):
         **basico,
         "versao": VERSAO,
         "username": account and account.get("username"),
-        "token_dias_restantes": account and round(instagram.token_days_left(account), 1),
+        "token_dias_restantes": account and _dias_publicos(account),
+        "login_meta": account and instagram.modo(account),
         "fluxos_ativos": len(db.list_flows(only_active=True)),
         "ativacao": LICENSE["status"],
         "membro": LICENSE["member"],
@@ -592,15 +666,19 @@ async def webhook_receive(request: Request, background: BackgroundTasks):
         payload = None
     objeto = payload.get("object") if isinstance(payload, dict) else ""
     if objeto == "whatsapp_business_account":
-        segredo, falta = meta_wa_app_secret() or meta_app_secret(), "META_WA_APP_SECRET vazio"
+        # a chave do app geral; o do login unificado É o app geral, então vale de
+        # reserva logo depois da do WA
+        reserva = meta_wa_app_secret() or fb_app_secret() or ig_app_secret()
+        segredos_ok, falta = ([reserva] if reserva else []), "META_WA_APP_SECRET vazio"
     else:
-        segredo, falta = meta_app_secret(), "META_APP_SECRET vazio"
-    if not segredo:
+        segredos_ok, falta = segredos_webhook_instagram(), "META_APP_SECRET vazio"
+    if not segredos_ok:
         db.log_event("webhook_recusado", payload={"motivo": falta})
         return Response(status_code=503)
 
     sig = request.headers.get("X-Hub-Signature-256", "")
-    if not _iguais(sig, "sha256=" + hmac.new(segredo.encode(), raw, hashlib.sha256).hexdigest()):
+    if not any(_iguais(sig, "sha256=" + hmac.new(s.encode(), raw, hashlib.sha256).hexdigest())
+               for s in segredos_ok):
         return Response(status_code=403)
     if payload is None:
         return Response(status_code=200)
@@ -640,12 +718,18 @@ def auth_start(request: Request):
     if (r := require_login(request)):
         return r
     app_id = meta_app_id()
+    fb = login_modo() == instagram.MODO_FB
     if not (app_id and BASE_URL):
-        return PlainTextResponse("Preencha o ID do app do Instagram em Configurações (ou "
-                                 "META_APP_ID no .env) e o BASE_URL primeiro.", status_code=500)
+        campo = ("o ID do app da Meta (login unificado)" if fb
+                 else "o ID do app do Instagram")
+        return PlainTextResponse(f"Preencha {campo} em Configurações (ou "
+                                 f"{'META_FB_APP_ID' if fb else 'META_APP_ID'} no .env) e o "
+                                 "BASE_URL primeiro.", status_code=500)
     state = secrets.token_urlsafe(24)
+    redirect_uri = f"{BASE_URL}/auth/callback"
     resp = RedirectResponse(
-        instagram.authorize_url(app_id, f"{BASE_URL}/auth/callback", state))
+        instagram.authorize_url_fb(app_id, redirect_uri, state, fb_config_id()) if fb
+        else instagram.authorize_url(app_id, redirect_uri, state))
     # Lax: o cookie volta no redirecionamento de topo que a Meta faz pro callback
     resp.set_cookie(OAUTH_STATE_COOKIE, state, httponly=True, max_age=600,
                     samesite="lax", secure=COOKIE_SEGURO)
@@ -667,6 +751,8 @@ def auth_callback(request: Request, code: str = "", state: str = "", error: str 
                                             "desc": error_description[:300]})
         return PlainTextResponse(f"Erro no OAuth: {error[:100]} — {error_description[:300]}",
                                  status_code=400)
+    if login_modo() == instagram.MODO_FB:
+        return _callback_fb(request, code, esperado)
     try:
         info = instagram.exchange_code(meta_app_id(), meta_app_secret(),
                                       f"{BASE_URL}/auth/callback", code)
@@ -681,13 +767,94 @@ def auth_callback(request: Request, code: str = "", state: str = "", error: str 
     account = db.upsert_account(info["ig_id"], info["ig_user_id"], info["username"],
                                 info["access_token"], info["token_expires_at"])
     try:
-        _baixar_avatar(account["id"], info["access_token"])
+        _baixar_avatar(account)
     except Exception as e:
         db.log_event("foto_perfil", account["id"], ok=False, payload={"erro": instagram.sem_segredo(e)[:200]})
     sub_ok, sub_body = instagram.subscribe_webhooks(info["access_token"])
     db.log_event("oauth_ok", account["id"], who=info["username"],
                  payload={"permissions": info["permissions"], "webhook_sub": sub_ok})
     resp = RedirectResponse("/painel?conectado=1", status_code=303)
+    resp.delete_cookie(OAUTH_STATE_COOKIE)
+    return resp
+
+
+# ---------- login do Facebook / unificado (1.11.0) ----------
+#
+# Mesmas travas do login do Instagram: sessão do painel + state amarrado ao cookie.
+# Quando a Meta devolve mais de uma conta do Instagram, o dono escolhe numa tela
+# daqui. As candidatas (com token) nunca vão pro navegador: ficam cifradas em
+# `ajustes` por 10 minutos, presas ao mesmo state.
+
+OAUTH_PENDENTE = "oauth_pendente"
+OAUTH_PENDENTE_S = 600
+
+
+def _callback_fb(request: Request, code: str, state: str):
+    try:
+        candidatas = instagram.exchange_code_fb(meta_app_id(), meta_app_secret(),
+                                                f"{BASE_URL}/auth/callback", code)
+    except instagram.SemContaInstagram as e:
+        db.log_event("oauth_erro", payload={"erro": "sem_conta_instagram"})
+        return PlainTextResponse(str(e), status_code=400)
+    except Exception as e:
+        db.log_event("oauth_erro", payload={"erro": instagram.sem_segredo(e)[:300]})
+        return PlainTextResponse(
+            "Falha ao conectar com a Meta. O detalhe está no histórico de eventos do "
+            "painel (oauth_erro). Tente de novo em instantes.", status_code=502)
+    if len(candidatas) == 1:
+        return _conectar_fb(candidatas[0], total=1)
+    segredos.guardar(OAUTH_PENDENTE, json.dumps({
+        "state": state, "ate": time.time() + OAUTH_PENDENTE_S, "candidatas": candidatas}))
+    return templates.TemplateResponse(request, "escolher_conta.html", {
+        "state": state,
+        "contas": [{"id": c["ig_user_id"], "username": c["username"],
+                    "pagina": c.get("page_nome", "")} for c in candidatas]})
+
+
+@app.post("/auth/escolher")
+def auth_escolher(request: Request, state: str = Form(""), ig: str = Form("")):
+    if (r := require_login(request)):
+        return r
+    esperado = request.cookies.get(OAUTH_STATE_COOKIE, "")
+    try:
+        pendente = json.loads(segredos.ler(OAUTH_PENDENTE) or "{}")
+    except ValueError:
+        pendente = {}
+    if (not esperado or not _iguais(state, esperado)
+            or not _iguais(str(pendente.get("state", "")), esperado)
+            or float(pendente.get("ate", 0)) < time.time()):
+        return PlainTextResponse(
+            "Esta escolha venceu ou não começou neste navegador. Volte ao painel e "
+            "clique em Conectar Instagram de novo.", status_code=400)
+    candidatas = pendente.get("candidatas") or []
+    escolhida = next((c for c in candidatas if str(c.get("ig_user_id")) == ig), None)
+    if not escolhida:
+        return PlainTextResponse("Conta não encontrada na autorização.", status_code=400)
+    segredos.guardar(OAUTH_PENDENTE, "")
+    return _conectar_fb(escolhida, total=len(candidatas))
+
+
+def _conectar_fb(c: dict, total: int):
+    account = db.upsert_account_fb(c["ig_user_id"], c.get("username", ""),
+                                   c["access_token"], c.get("token_expires_at"),
+                                   c.get("page_id", ""))
+    instagram.limpa_token_invalido(account["id"])
+    try:
+        _baixar_avatar(account)
+    except Exception as e:
+        db.log_event("foto_perfil", account["id"], ok=False,
+                     payload={"erro": instagram.sem_segredo(e)[:200]})
+    try:
+        sub_ok, sub_body = instagram.subscribe_webhooks(account)
+    except Exception as e:
+        sub_ok, sub_body = False, instagram.sem_segredo(e)
+    db.log_event("oauth_ok", account["id"], who=account.get("username") or "",
+                 payload={"modo": instagram.MODO_FB,
+                          "via": "pagina" if c.get("page_id") else "unificado",
+                          "contas_na_autorizacao": total, "webhook_sub": sub_ok,
+                          **({} if sub_ok else {"webhook_detalhe": sub_body[:300]})})
+    resp = RedirectResponse("/painel?conectado=1" if sub_ok else "/painel?conectado=sem_webhook",
+                            status_code=303)
     resp.delete_cookie(OAUTH_STATE_COOKIE)
     return resp
 
@@ -908,18 +1075,28 @@ def painel(request: Request):
         return guard
     account = db.first_account()
     app_id, app_secret = meta_app_id(), meta_app_secret()
+    fb = login_modo() == instagram.MODO_FB
+    if account and instagram.e_fb(account):
+        st = instagram.token_status(account)
+        token_dias = None if st["dias"] is None else round(st["dias"])
+    else:
+        token_dias = account and round(instagram.token_days_left(account))
     return templates.TemplateResponse(request, "painel.html", {
         "account": account,
-        "token_dias": account and round(instagram.token_days_left(account)),
+        "token_dias": token_dias,
+        "conta_fb": bool(account and instagram.e_fb(account)),
+        "reconectar": bool(account and instagram.token_invalido(account)),
+        "modo_fb": fb,
         "stats": db.stats(),
         "leads_info": db.leads_by_who(account["id"]) if account else {},
         "leads_total": db.leads_count(account["id"]) if account else 0,
         "conectado": request.query_params.get("conectado"),
         "configurado": bool(app_id and app_secret and BASE_URL),
         "falta_secret": not app_secret,
-        "faltando": [nome for nome, valor in (("META_APP_ID", app_id),
-                                              ("META_APP_SECRET", app_secret),
-                                              ("BASE_URL", BASE_URL)) if not valor],
+        "faltando": [nome for nome, valor in (
+            ("META_FB_APP_ID" if fb else "META_APP_ID", app_id),
+            ("META_FB_APP_SECRET" if fb else "META_APP_SECRET", app_secret),
+            ("BASE_URL", BASE_URL)) if not valor],
         "licenca": LICENSE,
         # -3h: o ts é UTC, e às 21h de Brasília "hoje" em UTC já é amanhã
         "hist_desde": db.in_seconds_iso(-30 * 86400 - 10800)[:10],
@@ -941,9 +1118,20 @@ def _status_env():
     """Linhas da tabela somente leitura: (nome, valor exibível, preenchido?).
     Segredo nunca aparece, nem mascarado: só 'preenchido' ou 'faltando'."""
     app_id, app_secret = meta_app_id(), meta_app_secret()
-    return [
-        ("META_APP_ID", app_id or "faltando", bool(app_id)),
-        ("META_APP_SECRET", "preenchido" if app_secret else "faltando", bool(app_secret)),
+    if login_modo() == instagram.MODO_FB:
+        linhas_meta = [
+            ("META_LOGIN_MODO", "facebook_login (login unificado)", True),
+            ("META_FB_APP_ID", app_id or "faltando", bool(app_id)),
+            ("META_FB_APP_SECRET", "preenchido" if app_secret else "faltando", bool(app_secret)),
+            ("META_FB_CONFIG_ID", fb_config_id() or "vazio (usa a lista de permissões)",
+             bool(fb_config_id())),
+        ]
+    else:
+        linhas_meta = [
+            ("META_APP_ID", app_id or "faltando", bool(app_id)),
+            ("META_APP_SECRET", "preenchido" if app_secret else "faltando", bool(app_secret)),
+        ]
+    return linhas_meta + [
         ("BASE_URL", BASE_URL or "faltando", bool(BASE_URL)),
         ("CEQ_ENCRYPTION_KEY", {"ok": "preenchida", "ausente": "faltando",
                                 "invalida": "chave inválida"}[segredos.estado_chave()],
@@ -983,12 +1171,20 @@ def _config(request: Request, extra: dict | None = None):
         "alerta_token_dica": f"termina em {token[-4:]}" if token else "",
         "alerta_chat": chat,
         "env_status": _status_env(),
-        "meta_app_id": meta_app_id(),
-        "tem_secret": bool(meta_app_secret()),
+        "meta_app_id": ig_app_id(),
+        "tem_secret": bool(ig_app_secret()),
         "cifrado": segredos.cifrado_disponivel(),
         "estado_chave": segredos.estado_chave(),
         "id_no_env": bool(os.environ.get("META_APP_ID")),
         "so_env": bool(os.environ.get("META_APP_SECRET")),
+        "login_modo": login_modo(),
+        "modo_no_env": bool(os.environ.get("META_LOGIN_MODO")),
+        "fb_app_id": fb_app_id(),
+        "tem_fb_secret": bool(fb_app_secret()),
+        "fb_config_id": fb_config_id(),
+        "fb_id_no_env": bool(os.environ.get("META_FB_APP_ID")),
+        "fb_secret_no_env": bool(os.environ.get("META_FB_APP_SECRET")),
+        "fb_config_no_env": bool(os.environ.get("META_FB_CONFIG_ID")),
         "base_url": BASE_URL,
         "verify_token": VERIFY_TOKEN,
         "salvo": request.query_params.get("salvo"),
@@ -1014,7 +1210,9 @@ def config_save(request: Request, teto: str = Form(""), alerta_token: str = Form
                 wa_waba_id: str = Form(""), wa_phone_number_id: str = Form(""),
                 wa_token: str = Form(""), meta_wa_app_secret: str = Form(""),
                 wa_envios_hora: str = Form(""), wa_limite_diario: str = Form(""),
-                wa_limite_diario_no_form: str = Form(""), wa_desconectar: str = Form("")):
+                wa_limite_diario_no_form: str = Form(""), wa_desconectar: str = Form(""),
+                meta_login_modo: str = Form(""), meta_fb_app_id: str = Form(""),
+                meta_fb_app_secret: str = Form(""), meta_fb_config_id: str = Form("")):
     guard = require_login(request)
     if guard:
         return guard
@@ -1029,6 +1227,19 @@ def config_save(request: Request, teto: str = Form(""), alerta_token: str = Form
     if meta_app_secret.strip():
         segredos.guardar("meta_app_secret", meta_app_secret.strip())
         mudou.append("meta_app_secret")
+    # login unificado (1.11.0): mesmo esquema, com o seu par de campos
+    if meta_login_modo.strip() in instagram.MODOS:
+        db.set_ajuste("meta_login_modo", meta_login_modo.strip())
+        mudou.append("meta_login_modo")
+    if meta_fb_app_id.strip():
+        segredos.guardar("meta_fb_app_id", meta_fb_app_id.strip())
+        mudou.append("meta_fb_app_id")
+    if meta_fb_app_secret.strip():
+        segredos.guardar("meta_fb_app_secret", meta_fb_app_secret.strip())
+        mudou.append("meta_fb_app_secret")
+    if meta_fb_config_id.strip():
+        segredos.guardar("meta_fb_config_id", meta_fb_config_id.strip())
+        mudou.append("meta_fb_config_id")
 
     if teto.strip().isdigit():
         efetivo = runtime.aplicar_teto(int(teto.strip()))

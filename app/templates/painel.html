@@ -8,7 +8,8 @@
   </div>
 </div>
 
-{% if conectado %}<div class="aviso ok"><span class="dot ok"></span>Conta conectada. O webhook de comentários e mensagens está assinado.</div>{% endif %}
+{% if conectado == 'sem_webhook' %}<div class="aviso grave"><span class="dot err"></span>Conta conectada, mas a Meta recusou a assinatura do webhook: comentários e mensagens podem não chegar. O detalhe está no histórico (oauth_ok). Confira o webhook no app da Meta e clique em Reconectar conta.</div>
+{% elif conectado %}<div class="aviso ok"><span class="dot ok"></span>Conta conectada. O webhook de comentários e mensagens está assinado.</div>{% endif %}
 
 {% if licenca.status == 'ativada' %}
 {% elif licenca.status == 'nao_ativada' %}
@@ -17,11 +18,12 @@
 
 {% if falta_secret %}
 <div class="aviso grave"><span class="dot err"></span><strong>Os eventos da Meta estão sendo recusados.</strong>
-Falta a chave secreta do app da Meta: cole em <a href="/config">Configurações</a> (ou <code>META_APP_SECRET</code> no .env). É com ela que a instância confere que o
+Falta a chave secreta do app da Meta: cole em <a href="/config">Configurações</a> (ou <code>{{ 'META_FB_APP_SECRET' if modo_fb else 'META_APP_SECRET' }}</code> no .env). É com ela que a instância confere que o
 evento veio mesmo da Meta, e sem essa conferência qualquer um poderia mandar DM em nome
 da sua conta. Enquanto estiver vazio, nenhum comentário ou mensagem é processado.
-O valor está no painel da Meta, em <em>Configuração da API com login do Instagram</em>
-(a chave secreta <strong>do Instagram</strong>, não a do app geral). O passo a passo está em Configurações.</div>
+{% if modo_fb %}No login unificado, é a <strong>Chave secreta do aplicativo</strong> do app geral, em <em>Configurações do app → Básico</em>.
+{% else %}O valor está no painel da Meta, em <em>Configuração da API com login do Instagram</em>
+(a chave secreta <strong>do Instagram</strong>, não a do app geral).{% endif %} O passo a passo está em Configurações.</div>
 {% elif not configurado %}
 <div class="aviso"><span class="dot warn"></span>Faltam itens de configuração ({% for v in faltando %}<code>{{ v }}</code>{% if not loop.last %}, {% endif %}{% endfor %}). O passo a passo está em <a href="/config">Configurações</a>.</div>
 {% endif %}
@@ -35,9 +37,11 @@ O valor está no painel da Meta, em <em>Configuração da API com login do Insta
         <div>
           <b>@{{ account.username }}</b>
           <div class="estados">
-            <span class="tag ok"><span class="dot"></span>conectada</span>
+            {% if reconectar %}<span class="tag erro"><span class="dot"></span>reconectar</span>
+            {% else %}<span class="tag ok"><span class="dot"></span>conectada</span>{% endif %}
             {% if licenca.status == 'ativada' %}<span class="tag ok"><span class="dot"></span>ativada{% if licenca.member %} ({{ licenca.member }}){% endif %}</span>{% endif %}
-            <span class="sub">token renova automaticamente · {{ token_dias }} dias de validade</span>
+            {% if conta_fb %}<span class="sub">login unificado · {% if token_dias is none %}acesso sem prazo de validade{% else %}{{ token_dias }} dias de validade{% endif %}</span>
+            {% else %}<span class="sub">token renova automaticamente · {{ token_dias }} dias de validade</span>{% endif %}
           </div>
         </div>
       </div>
@@ -46,7 +50,15 @@ O valor está no painel da Meta, em <em>Configuração da API com login do Insta
         <button type="submit" class="quieto pequeno">Encerrar sessões em todos os dispositivos</button>
       </form>
     </div>
-    {% if token_dias is not none and token_dias < 10 %}
+    {% if reconectar %}
+      <div class="aviso grave"><span class="dot err"></span>A Meta não aceita mais o acesso desta conta (o app pode ter sido removido do portfólio, ou a conta mudou de portfólio). Nada é enviado até você reconectar.
+      <a href="/auth/start">Reconectar conta</a>.</div>
+    {% elif conta_fb %}
+      {% if token_dias is not none and token_dias < 10 %}
+      <div class="aviso"><span class="dot warn"></span>O acesso desta conta vence em {{ token_dias }} dias e no login unificado não renova sozinho.
+      <a href="/auth/start">Reconectar conta</a> (ou, na configuração do login no app da Meta, escolha validade "Nunca").</div>
+      {% endif %}
+    {% elif token_dias is not none and token_dias < 10 %}
       <div class="aviso"><span class="dot warn"></span>A renovação automática do token não completou.
       <a href="/auth/start">Reconectar conta</a>.</div>
     {% endif %}

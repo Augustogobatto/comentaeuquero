@@ -259,7 +259,7 @@ def match_trigger(account_id, tipo, texto, media_id=None):
 def _lead_de(account, igsid, username="", keyword=""):
     lead = db.touch_lead(account["id"], str(igsid), keyword, username)
     if not lead["enriched"]:
-        perfil = instagram.fetch_profile(account["access_token"], igsid)
+        perfil = instagram.fetch_profile(account, igsid)
         if perfil:
             db.enrich_lead(account["id"], lead["igsid"], perfil)
             lead = db.get_lead(lead["id"])

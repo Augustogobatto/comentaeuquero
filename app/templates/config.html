@@ -17,6 +17,31 @@
   {% if estado_chave == 'invalida' and not so_env %}<div class="aviso grave"><span class="dot err"></span><code>CEQ_ENCRYPTION_KEY</code> com chave inválida no .env: a chave secreta fica guardada sem cifra no banco desta instância. Gere uma chave nova (Fernet) e reinicie.</div>
   {% elif not cifrado and not so_env %}<div class="aviso"><span class="dot warn"></span>Sem <code>CEQ_ENCRYPTION_KEY</code> no .env: a chave secreta fica guardada sem cifra no banco desta instância.</div>{% endif %}
 
+  <p style="margin-bottom:4px;"><b>Como seu app conecta o Instagram</b>
+    {% if modo_no_env %}<span class="sub">definido no .env (META_LOGIN_MODO)</span>{% endif %}</p>
+  <label class="check"><input type="radio" name="meta_login_modo" value="facebook_login"{% if login_modo == 'facebook_login' %} checked{% endif %}{% if modo_no_env %} disabled{% endif %}>
+    <span><b>Login unificado</b> <span class="sub">app criado a partir de novembro de 2026: a página da Meta diz "Seu app usa a configuração da API com login unificado"</span></span></label>
+  <label class="check"><input type="radio" name="meta_login_modo" value="instagram_login"{% if login_modo == 'instagram_login' %} checked{% endif %}{% if modo_no_env %} disabled{% endif %}>
+    <span><b>Login do Instagram</b> <span class="sub">app antigo, que tem "ID do app do Instagram" e "Chave secreta do app do Instagram"</span></span></label>
+
+  <fieldset style="border:0;padding:0;margin:16px 0 0;">
+  <legend><b>Login unificado</b></legend>
+  <label>ID do aplicativo
+    <span class="sub">{% if fb_id_no_env %}definido no .env (META_FB_APP_ID){% else %}o do app geral, em Configurações do app → Básico{% endif %}</span>
+    <input type="text" name="meta_fb_app_id" inputmode="numeric" value="{{ fb_app_id }}" autocomplete="off"{% if fb_id_no_env %} disabled{% endif %}>
+  </label>
+  <label>Chave secreta do aplicativo
+    <span class="sub">{% if fb_secret_no_env %}definida no .env (META_FB_APP_SECRET){% elif tem_fb_secret %}salva, deixe em branco pra manter{% else %}a do app geral, em Configurações do app → Básico{% endif %}</span>
+    <input type="password" name="meta_fb_app_secret" value="" autocomplete="off"{% if tem_fb_secret %} placeholder="•••••• (preenchido)"{% endif %}{% if fb_secret_no_env %} disabled{% endif %}>
+  </label>
+  <label>ID da configuração (config_id)
+    <span class="sub">{% if fb_config_no_env %}definido no .env (META_FB_CONFIG_ID){% else %}o número da configuração do login (passo a passo abaixo). Não é segredo.{% endif %}</span>
+    <input type="text" name="meta_fb_config_id" inputmode="numeric" value="{{ fb_config_id }}" autocomplete="off"{% if fb_config_no_env %} disabled{% endif %}>
+  </label>
+  </fieldset>
+
+  <fieldset style="border:0;padding:0;margin:16px 0 0;">
+  <legend><b>Login do Instagram</b> <span class="sub">(app antigo)</span></legend>
   <label>ID do app do Instagram
     {% if id_no_env %}<span class="sub">definido no .env (o .env tem precedência; mude por lá)</span>{% endif %}
     <input type="text" name="meta_app_id" inputmode="numeric" value="{{ meta_app_id }}" autocomplete="off"{% if id_no_env %} disabled{% endif %}>
@@ -26,9 +51,23 @@
     <span class="sub">{% if so_env %}definida no .env (o .env tem precedência; mude por lá){% elif tem_secret %}salva, deixe em branco pra manter{% else %}a do Instagram, não a do app geral{% endif %}</span>
     <input type="password" name="meta_app_secret" value="" autocomplete="off"{% if tem_secret %} placeholder="•••••• (preenchido)"{% endif %}{% if so_env %} disabled{% endif %}>
   </label>
+  </fieldset>
 
-  <details{% if not (meta_app_id and tem_secret) %} open{% endif %}>
-    <summary><strong>Crie seu app na Meta</strong> (uma vez só, uns 15 minutos)</summary>
+  <details{% if not ((meta_app_id and tem_secret) or (fb_app_id and tem_fb_secret)) %} open{% endif %}>
+    <summary><strong>Crie seu app na Meta: login unificado</strong> (app novo, uns 20 minutos)</summary>
+    <ol>
+      <li>Em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Meus apps → Criar aplicativo</strong>, caso de uso <strong>Gerenciar mensagens e conteúdo no Instagram</strong>, ligado ao seu <strong>portfólio empresarial</strong>. O nome não pode ter "Instagram", "Insta", "IG", "Meta" nem "Facebook".</li>
+      <li><strong>Casos de uso → Gerenciar mensagens e conteúdo no Instagram → Personalizar → Configuração da API com login unificado</strong>. Em <strong>Configurar seu app → Criar nova configuração</strong>: validade do token <strong>Nunca</strong>; em <strong>Editar permissões</strong> deixe <code>instagram_basic</code>, <code>instagram_manage_messages</code>, <code>instagram_manage_comments</code> e acrescente <code>business_management</code>. <strong>Usar esta configuração</strong>.</li>
+      <li>No campo <strong>URL de redirecionamento</strong> da configuração: <code>{{ base_url or "SEU_ENDERECO" }}/auth/callback</code> → Salvar. Copie o <strong>ID da configuração</strong> (o número <code>config_id</code> que aparece no link de login) e cole no campo acima.</li>
+      <li>Em <strong>Configurações do app → Básico</strong>, copie o <strong>ID do aplicativo</strong> e a <strong>Chave secreta do aplicativo</strong> pros campos acima, e ponha a URL da Política de Privacidade <code>{{ base_url or "SEU_ENDERECO" }}/privacy</code>.</li>
+      <li>Em <strong>Configurar webhooks</strong> (mesma aba do login unificado): URL de callback <code>{{ base_url or "SEU_ENDERECO" }}/webhook</code> e token de verificação <code>{{ verify_token }}</code> → <strong>Verificar e salvar</strong>. Marque <code>comments</code>, <code>live_comments</code>, <code>messages</code> e <code>messaging_postbacks</code>.</li>
+      <li>Em <strong>Gerar tokens de acesso → Adicionar conta</strong>, convide o @ da sua conta como <strong>Testador do Instagram</strong> e aceite no Instagram pelo navegador: <strong>Configurações → Permissões do site → Apps e sites → Convites de testador</strong>.</li>
+      <li>Marque <strong>Login unificado</strong> acima, salve, e clique em <strong>Conectar Instagram</strong> no painel. Depois, menu lateral → <strong>Publicar</strong>.</li>
+    </ol>
+  </details>
+
+  <details>
+    <summary><strong>Se seu app é antigo</strong> (tem "Configuração da API com login do Instagram")</summary>
     <ol>
       <li>Em <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com</a>: <strong>Meus apps → Criar aplicativo</strong>, caso de uso <strong>Gerenciar mensagens e conteúdo no Instagram</strong>, tipo <strong>Empresa</strong>. O nome não pode ter "Instagram", "Insta", "IG", "Meta" nem "Facebook".</li>
       <li>No app: <strong>Casos de uso → Personalizar → Configuração da API com login do Instagram</strong> → <strong>Add all required permissions</strong>. Copie o <strong>ID do app do Instagram</strong> e a <strong>Chave secreta do app do Instagram</strong> (os da página do Instagram, não os do app geral) e cole nos campos acima.</li>

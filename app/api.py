@@ -428,7 +428,7 @@ def importar(body: dict):
 def listar_medias():
     """Posts e Reels da conta, pro seletor de 'só neste post'."""
     conta = _conta_ou_erro()
-    itens = instagram.fetch_media_list(conta["access_token"])
+    itens = instagram.fetch_media_list(conta)
     return [{"id": m.get("id"), "caption": (m.get("caption") or "")[:80],
              "thumb": m.get("thumbnail_url") or m.get("media_url"),
              "permalink": m.get("permalink"), "type": m.get("media_type"),

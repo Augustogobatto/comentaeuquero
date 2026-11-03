@@ -344,6 +344,11 @@ def init():
         "ALTER TABLE wa_envios ADD COLUMN adiamentos INTEGER DEFAULT 0",
         # pasta do template (1.9.0); NULL = sem pasta
         "ALTER TABLE wa_templates ADD COLUMN pasta_id INTEGER",
+        # modo de conexão do Instagram (1.11.0): instagram_login (o de sempre) ou
+        # facebook_login (login unificado dos apps novos). page_id só no caminho
+        # clássico com página do Facebook; no unificado fica vazio.
+        "ALTER TABLE accounts ADD COLUMN api_modo TEXT DEFAULT 'instagram_login'",
+        "ALTER TABLE accounts ADD COLUMN page_id TEXT DEFAULT ''",
         # índice depois dos ALTERs: em banco antigo a coluna wa_id só existe agora
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_wa ON leads(account_id, wa_id) "
         "WHERE wa_id <> ''",
@@ -433,10 +438,38 @@ def upsert_account(ig_id, ig_user_id, username, access_token, token_expires_at):
            VALUES (?,?,?,?,?)
            ON CONFLICT(ig_id) DO UPDATE SET
              ig_user_id=excluded.ig_user_id, username=excluded.username,
-             access_token=excluded.access_token, token_expires_at=excluded.token_expires_at""",
+             access_token=excluded.access_token, token_expires_at=excluded.token_expires_at,
+             api_modo='instagram_login', page_id=''""",
         (str(ig_id), str(ig_user_id or ""), username or "", access_token, token_expires_at))
     conn().commit()
     return get_account_by_ig_id(ig_id)
+
+
+def upsert_account_fb(ig_user_id, username, access_token, token_expires_at, page_id=""):
+    """Conta conectada pelo login do Facebook (unificado ou com página).
+
+    A Meta devolve o ID 1784... da conta profissional, que é o `ig_user_id` de uma
+    conta já conectada antes pelo login do Instagram (o `ig_id` dela é outro). Se
+    existir, a linha é a mesma: fluxos, leads e histórico seguem, só muda o jeito de
+    falar com a Meta. Senão, nasce com ig_id = ig_user_id = esse ID.
+    """
+    ig_user_id = str(ig_user_id)
+    atual = get_account_by_ig_id(ig_user_id)
+    if atual:
+        conn().execute(
+            """UPDATE accounts SET ig_user_id=?, username=?, access_token=?,
+                 token_expires_at=?, api_modo='facebook_login', page_id=? WHERE id=?""",
+            (ig_user_id, username or atual.get("username") or "", access_token,
+             token_expires_at, str(page_id or ""), atual["id"]))
+    else:
+        conn().execute(
+            """INSERT INTO accounts (ig_id, ig_user_id, username, access_token,
+                 token_expires_at, api_modo, page_id)
+               VALUES (?,?,?,?,?,'facebook_login',?)""",
+            (ig_user_id, ig_user_id, username or "", access_token, token_expires_at,
+             str(page_id or "")))
+    conn().commit()
+    return get_account_by_ig_id(ig_user_id)
 
 
 def get_account_by_ig_id(ig_id):
