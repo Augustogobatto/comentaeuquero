@@ -359,7 +359,11 @@ def init():
             conn().rollback()  # coluna já existe; sem o rollback a transação fica aberta
     conn().commit()
     migrate_rules_to_flows()
-    fundir_contas_duplicadas()
+    try:
+        fundir_contas_duplicadas()
+    except Exception as e:  # nunca derrubar a subida por causa da faxina
+        import logging
+        logging.getLogger(__name__).warning("fundir_contas_duplicadas falhou: %s", e)
 
 
 # ---------- sessões do painel ----------

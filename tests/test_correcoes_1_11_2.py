@@ -298,3 +298,11 @@ def test_troca_falhou_segue_com_o_curto_sem_vazar_segredo(monkeypatch, caplog):
     contas = instagram.exchange_code_fb("555", "fb-secret", "https://x/cb", "code")
     assert contas[0]["access_token"] == "CURTO"
     assert "fb-secret" not in caplog.text and "CURTO" not in caplog.text
+
+
+def test_init_sobe_mesmo_se_a_fusao_falhar(monkeypatch):
+    from app import db
+    def explode(*a, **k):
+        raise RuntimeError("banco estranho")
+    monkeypatch.setattr(db, "fundir_contas_duplicadas", explode)
+    db.init()  # não pode levantar
