@@ -3,6 +3,24 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [1.11.1] - 2026-11-03
+
+### Corrigido — ida e volta entre o login unificado e o login do Instagram
+- Conta que estava no login unificado, teve o acesso derrubado pela Meta e foi
+  reconectada pelo login do Instagram continuava com **Reconectar conta** no painel
+  pra sempre. Agora reconectar pelo login do Instagram também tira esse aviso.
+- Instalação que conectou primeiro pelo login unificado e depois voltou pro login
+  do Instagram ganhava uma segunda conta no banco, e o painel e o webhook seguiam
+  usando a antiga. Agora a conta é a mesma: só trocam o token e o jeito de falar com
+  a Meta, e fluxos, leads e histórico ficam. Quem sempre usou o login do Instagram
+  não muda nada.
+- Na escolha de conta (mais de uma conta liberada), os acessos das contas que não
+  foram escolhidas ficavam guardados no servidor mesmo depois dos 10 minutos. Agora
+  são apagados quando o prazo vence e quando o dono clica em Conectar de novo.
+- Se o dono trocava o modo de conexão em Configurações enquanto a tela da Meta
+  estava aberta, a volta tentava terminar no modo novo e dava erro. Agora termina no
+  modo em que a conexão começou.
+
 ## [1.11.0] - 2026-11-03
 
 ### Novo — Conectar o Instagram pelo login unificado (app novo da Meta)
