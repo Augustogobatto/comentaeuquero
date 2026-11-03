@@ -25,14 +25,14 @@ Se você liberou mais de uma conta do Instagram na tela da Meta, o painel pergun
 
 | Mensagem | O que fazer |
 |---|---|
-| The following business assets were not granted the requested permissions | Você escolheu um portfólio que só tem a conta **compartilhada**. Conecte de novo escolhendo o portfólio **dono** da conta ([passo 7 do app](./app-meta#_7-conecte-a-conta)). |
+| The following business assets were not granted the requested permissions | Você escolheu um portfólio que só tem a conta **compartilhada**. Conecte de novo escolhendo o portfólio **dono** da conta ([passo 7 do app](./app-meta#_7-conecte-a-conta-e-teste)). |
 | Nenhuma conta profissional do Instagram veio junto | Na tela da Meta, escolha o portfólio certo e marque a conta. Se ela não aparece: a conta precisa ser Profissional (Empresa ou Criador) e pertencer a esse portfólio. |
 | Invalid Scopes / Invalid platform app | O app é novo e o painel está em **Login do Instagram**. Em Configurações, marque **Login unificado** e preencha o ID da configuração. |
 | A opção de entrar com o Instagram não aparece | O navegador já está logado no Facebook. Use **Adicionar outra conta** na tela da Meta, ou entre pelo Facebook mesmo. |
 | Função de desenvolvedor é insuficiente | (App antigo) Você não aceitou o convite de testador. Veja [Se seu app é antigo](./app-meta#se-seu-app-e-antigo-login-do-instagram). |
 | Erro de redirecionamento ou URI inválida | A URL de redirecionamento (na configuração do login unificado, ou em "Configurar o login da empresa" no app antigo) tem que ser exatamente `https://SEU-ENDERECO/auth/callback`, e o `BASE_URL` tem que ser o mesmo endereço, sem barra no fim. |
-| Comentário chega e é respondido, mas a resposta da pessoa e o clique no botão não chegam | Falta liberar as mensagens no app do Instagram ([passo 6 do app](./app-meta#_6-libere-as-mensagens-no-instagram)). |
-| Comentário de seguidor não chega (nada no painel) | O app não está publicado ([passo 5 do app](./app-meta#_5-publique-o-app)). |
+| Comentário chega e é respondido, mas a resposta da pessoa e o clique no botão não chegam | A conta não é **Testadora do Instagram** do app, ou não aceitou o convite ([passo 5 do app](./app-meta#_5-vire-testador-do-seu-proprio-app)). Confira também **Permitir acesso às mensagens** no Instagram ([passo 6](./app-meta#_6-publique-o-app)). |
+| Comentário de seguidor não chega (nada no painel) | O app não está publicado ([passo 6 do app](./app-meta#_6-publique-o-app)). |
 | Os eventos da Meta estão sendo recusados | Falta a chave secreta. [Passo 3 do app](./app-meta#_3-copie-o-id-e-a-chave-secreta). |
 | Mensagens não saem: "disabled access to Instagram Direct Messaging" | No app do Instagram: **Configurações → Mensagens e respostas ao story → Controles de mensagem → Ferramentas conectadas → Permitir acesso às mensagens**. |
 

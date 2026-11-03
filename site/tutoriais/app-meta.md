@@ -80,7 +80,18 @@ Depois, **assine os campos** `comments`, `live_comments`, `messages` e `messagin
 <!-- PRINT: seção "Configurar webhooks" preenchida, com os quatro campos assinados -->
 <Print>Seção "Configurar webhooks" preenchida, com os quatro campos assinados.</Print>
 
-## 5. Publique o app
+## 5. Vire testador do seu próprio app
+
+**Não pule este passo.** Sem ele a conexão funciona e o comentário até é respondido, mas a resposta da pessoa no direct e o clique no botão **nunca chegam**.
+
+1. No painel do app: **Funções do app → Funções → Adicionar pessoas**.
+2. Marque **Testador do Instagram** (em "Funções adicionais para este app"), digite o @ da sua conta, escolha ela na lista e clique em **Adicionar**.
+3. Aceite o convite **pelo navegador do computador**, logado nessa conta: abra [instagram.com/accounts/manage_access](https://www.instagram.com/accounts/manage_access/) → **Convites de testador** → **Aceitar**. (No app do celular o convite não aparece.)
+
+<!-- PRINT: "Adicionar pessoas" com "Testador do Instagram" marcado e o @ preenchido -->
+<Print>"Adicionar pessoas" com "Testador do Instagram" marcado e o @ preenchido.</Print>
+
+## 6. Publique o app
 
 No menu lateral, clique em **Publicar** e depois no botão **Publicar** no canto de baixo. Não pede análise da Meta.
 
@@ -93,24 +104,19 @@ O app do WhatsApp é o contrário: fica **sem publicar**. Por isso são dois app
 <!-- PRINT: botão "Publicar" no menu lateral do app e o selo "Publicado" -->
 <Print>Botão "Publicar" no menu lateral do app e o selo "Publicado".</Print>
 
-## 6. Libere as mensagens no Instagram
+::: tip Confira se as mensagens estão liberadas no Instagram
+No app do Instagram no celular: **Configurações e atividade → Mensagens e respostas a stories → Pedidos de contato → Ferramentas conectadas → Permitir acesso às mensagens**. Costuma vir ligado; se estiver desligado, ligue.
+:::
 
-No login unificado, a Meta só entrega a DM e o clique em botão se a própria conta liberar. **Sem isso, o comenta EU QUERO responde o comentário, mas não recebe a resposta da pessoa nem o clique no botão.**
-
-No **app do Instagram no celular** (no navegador essa opção não existe), logado na conta que você vai conectar:
-
-**Perfil → ☰ → Configurações e privacidade → Mensagens e respostas ao story → Ferramentas conectadas → Permitir acesso às mensagens → ligar**
-
-<!-- PRINT: tela "Ferramentas conectadas" no app do Instagram com "Permitir acesso às mensagens" ligado -->
-<Print>Tela "Ferramentas conectadas" no app do Instagram com "Permitir acesso às mensagens" ligado.</Print>
-
-## 7. Conecte a conta
+## 7. Conecte a conta e teste
 
 Agora [conecte o Instagram](./conectar-instagram). Na tela da Meta, escolha o **portfólio que é dono da conta do Instagram** e marque a conta.
 
 ::: warning Portfólio dono, não portfólio compartilhado
 Se a conta do Instagram só está **compartilhada** com o portfólio que você escolher, a Meta recusa com *"The following business assets were not granted the requested permissions"*. Pra saber quem é o dono: em [business.facebook.com](https://business.facebook.com) → **Configurações → Contas do Instagram**, a conta mostra "Isto pertence a ...". Escolha esse portfólio na tela de conectar.
 :::
+
+Pra testar, crie um fluxo com uma palavra que ninguém usa (ex.: `zebra123`) e comente essa palavra num post **com outra conta**. Tem que chegar a DM, e o clique no botão tem que seguir o fluxo.
 
 ## Se seu app é antigo (login do Instagram)
 
@@ -121,7 +127,7 @@ Vale para app criado antes do fim de outubro de 2026, que tem a página **Config
 3. **Testador:** **Funções do app → Funções → Adicionar pessoas → Testador do Instagram** com o @ da sua conta, e aceite no Instagram em **Configurações → Site e apps → Convites de testador**. Sem isso, o login dá "Função de desenvolvedor é insuficiente".
 4. **Webhook:** na seção **Configurar webhooks** dessa página, URL `https://SEU-ENDERECO/webhook` e o token de verificação. Aqui não precisa marcar campos: a instância assina sozinha ao conectar.
 5. **Login e privacidade:** em **Configurar o login da empresa**, adicione a URI `https://SEU-ENDERECO/auth/callback`. Em **Configurações do app → Básico**, URL da Política de Privacidade `https://SEU-ENDERECO/privacy`.
-6. **Publique** o app, como no passo 5.
+6. **Publique** o app, como no passo 6.
 
 No login do Instagram o acesso dura 60 dias e a instância renova sozinha.
 
