@@ -24,9 +24,9 @@ Antes de tudo, você precisa de um **portfólio empresarial** (o antigo Gerencia
 
 1. Entre em [developers.facebook.com](https://developers.facebook.com) com a sua conta do Facebook.
 2. Vá em **Meus apps** e clique em **Criar aplicativo**.
-3. No caso de uso, escolha **Gerenciar mensagens e conteúdo no Instagram**.
-4. Ligue o app ao seu **portfólio empresarial** quando a Meta perguntar.
-5. Dê um nome. O nome **não pode conter** "Instagram", "Insta", "IG", "Meta" nem "Facebook". "Respostas da Loja Maria" serve.
+3. Dê um nome. O nome **não pode conter** "Instagram", "Insta", "IG", "Meta" nem "Facebook". "Respostas da Loja Maria" serve.
+4. No caso de uso, filtre por **Gerenciamento de conteúdo** e escolha **Gerenciar mensagens e conteúdo no Instagram**.
+5. Ligue o app ao seu **portfólio empresarial** e clique em **Criar aplicativo**. A Meta pode pedir a senha do Facebook de novo.
 
 <!-- PRINT: tela "Criar aplicativo" com o caso de uso "Gerenciar mensagens e conteúdo no Instagram" selecionado -->
 <Print>Tela "Criar aplicativo" com o caso de uso "Gerenciar mensagens e conteúdo no Instagram" selecionado.</Print>
@@ -35,34 +35,21 @@ Antes de tudo, você precisa de um **portfólio empresarial** (o antigo Gerencia
 
 A configuração é a lista do que o seu app pede quando você conecta a conta. Ela ganha um número, o **ID da configuração** (`config_id`), que o comenta EU QUERO usa no botão Conectar Instagram.
 
-1. No painel do app: **Casos de uso → Gerenciar mensagens e conteúdo no Instagram → Personalizar** e abra **Configuração da API com login unificado**.
-2. Em **Configurar seu app**, clique em **Criar nova configuração**.
-3. Na prévia da configuração, confira a **validade do token**. Escolha **Nunca** se a opção aparecer. (Se ficar 60 dias, o painel avisa quando estiver perto de vencer e você reconecta.)
-4. Clique em **Editar permissões** e deixe marcadas:
-   - `instagram_basic`
-   - `instagram_manage_messages`
-   - `instagram_manage_comments`
-   - `business_management`
+1. No painel do app, clique em **Personalizar o caso de uso "Gerenciar mensagens e conteúdo no Instagram"**. Abre a página **API setup with Unified login**, com o aviso de que o login do Instagram não está disponível pra apps novos. É aqui mesmo.
+2. Em **1. Configure seu app**, clique em **Criar nova configuração** e depois em **Criar do modelo**. O modelo já vem com token de usuário do sistema que **nunca expira** e as permissões certas. Não precisa mexer.
+3. Em **URL de redirecionamento**, coloque `https://SEU-ENDERECO/auth/callback` e clique em **Salvar**.
+4. Copie o **Identificação da configuração** (o número que aparece embaixo de "API do Instagram (login unificado)").
 
-   As de anúncio (`ads_management`, `ads_read`) e publicação (`instagram_content_publish`) podem sair: o comenta EU QUERO não usa.
-5. Clique em **Usar esta configuração**.
-6. Em **URL de redirecionamento**, coloque `https://SEU-ENDERECO/auth/callback` e salve.
-7. Copie o **ID da configuração**. Ele aparece na configuração e também dentro do **link de login** que a Meta mostra, depois de `config_id=`.
-
-::: warning Não esqueça o business_management
-Sem ele, a Meta autoriza, mas não entrega a conta do Instagram pro app, e o comenta EU QUERO mostra "nenhuma conta profissional do Instagram veio junto". Se a permissão não aparece em **Editar permissões**, edite a mesma configuração em **Login do Facebook para Empresas → Configurações** (adicione esse produto ao app, se pedir).
-:::
-
-<!-- PRINT: prévia da configuração com "Editar permissões" e o campo "URL de redirecionamento" -->
-<Print>Prévia da configuração com "Editar permissões" e o campo "URL de redirecionamento".</Print>
+<!-- PRINT: configuração criada, com o número da configuração e a URL de redirecionamento salva -->
+<Print>Configuração criada, com o número da configuração e a URL de redirecionamento salva.</Print>
 
 ## 3. Copie o ID e a chave secreta
 
 No login unificado, o ID e a chave são os do **app geral**:
 
 1. No painel do app: **Configurações do app → Básico**.
-2. Copie o **ID do aplicativo** e a **Chave secreta do aplicativo** (clique em **Mostrar**).
-3. Nessa mesma tela, no campo **URL da Política de Privacidade**, coloque `https://SEU-ENDERECO/privacy` (a sua instância já serve essa página) e salve.
+2. Copie o **ID do Aplicativo** e a **Chave Secreta do Aplicativo** (clique em **Mostrar**; a Meta pede a senha do Facebook).
+3. Nessa mesma tela, preencha **URL da Política de Privacidade** com `https://SEU-ENDERECO/privacy` (a sua instância já serve essa página), escolha uma **Categoria** (Mensagens serve) e clique em **Salvar alterações**. Sem isso o app não publica.
 
 No seu painel do comenta EU QUERO, em **Configurações → App da Meta**:
 
@@ -77,51 +64,53 @@ A chave secreta não é opcional. É com ela que a sua instância confere que ca
 <!-- PRINT: Configurações → App da Meta no painel do comenta EU QUERO, com "Login unificado" marcado -->
 <Print>Configurações → App da Meta no painel do comenta EU QUERO, com "Login unificado" marcado.</Print>
 
-## 4. Vire testador do seu próprio app
-
-Enquanto o app é só seu, a conta do Instagram precisa ter um papel nele.
-
-1. Na página **Configuração da API com login unificado**, abra **Gerar tokens de acesso** e clique em **Adicionar conta**.
-2. Convide o @ da sua conta como **Testador do Instagram**.
-3. Aceite o convite no Instagram **pelo navegador do computador** (no app do celular o convite costuma não aparecer): **Configurações → Permissões do site → Apps e sites → Convites de testador → Aceitar**.
-
-Não precisa gerar token nessa tela: o comenta EU QUERO pega o dele quando você conecta.
-
-<!-- PRINT: convite de testador no Instagram pelo navegador -->
-<Print>Convite de testador no Instagram, aberto pelo navegador.</Print>
-
-## 5. Configure o webhook
+## 4. Configure o webhook
 
 É por aqui que a Meta avisa a sua instância de cada comentário e mensagem.
 
-Na página **Configuração da API com login unificado**, seção **Configurar webhooks**:
+Na página **API setup with Unified login**, seção **3. Configurar webhooks**:
 
 - **URL de callback:** `https://SEU-ENDERECO/webhook`
 - **Verificar token:** o mesmo texto do `WEBHOOK_VERIFY_TOKEN` do seu `.env` (na instalação pelo chão, o painel mostra qual é, em Configurações).
 
 Clique em **Verificar e salvar**. Tem que dar certo na hora. Se der erro, confira se o endereço abre no navegador e se o token é idêntico, sem espaço no fim.
 
-Depois, **marque os campos** `comments`, `live_comments`, `messages` e `messaging_postbacks`. No login unificado, a conta só recebe o que estiver marcado aqui. Quando você conectar, a instância liga a sua conta a esses campos sozinha.
+Depois, **assine os campos** `comments`, `live_comments`, `messages` e `messaging_postbacks`. No login unificado, a conta só recebe o que estiver assinado aqui. Quando você conectar, a instância liga a sua conta a esses campos sozinha.
 
-<!-- PRINT: seção "Configurar webhooks" preenchida, com os quatro campos marcados -->
-<Print>Seção "Configurar webhooks" preenchida, com os quatro campos marcados.</Print>
+<!-- PRINT: seção "Configurar webhooks" preenchida, com os quatro campos assinados -->
+<Print>Seção "Configurar webhooks" preenchida, com os quatro campos assinados.</Print>
 
-## 6. Conecte a conta
+## 5. Publique o app
 
-Agora [conecte o Instagram](./conectar-instagram). A tela da Meta pede o login (pode ser com o Instagram ou com o Facebook), o portfólio empresarial e a conta do Instagram.
-
-## 7. Publique o app
-
-No menu lateral, clique em **Publicar** e publique.
+No menu lateral, clique em **Publicar** e depois no botão **Publicar** no canto de baixo. Não pede análise da Meta.
 
 ::: danger A pegadinha mais comum
-Sem publicar, **os comentários podem não chegar**. As mensagens de direct até chegam, o que confunde. Publicar não exige análise da Meta para usar na sua própria conta.
+Sem publicar, **nada de quem não tem papel no app chega**: o comentário de um seguidor some sem erro nenhum. Publique antes de testar.
 :::
 
 O app do WhatsApp é o contrário: fica **sem publicar**. Por isso são dois apps.
 
-<!-- PRINT: botão "Publicar" no menu lateral do app e a confirmação de app publicado -->
-<Print>Botão "Publicar" no menu lateral do app e a confirmação de app publicado.</Print>
+<!-- PRINT: botão "Publicar" no menu lateral do app e o selo "Publicado" -->
+<Print>Botão "Publicar" no menu lateral do app e o selo "Publicado".</Print>
+
+## 6. Libere as mensagens no Instagram
+
+No login unificado, a Meta só entrega a DM e o clique em botão se a própria conta liberar. **Sem isso, o comenta EU QUERO responde o comentário, mas não recebe a resposta da pessoa nem o clique no botão.**
+
+No **app do Instagram no celular** (no navegador essa opção não existe), logado na conta que você vai conectar:
+
+**Perfil → ☰ → Configurações e privacidade → Mensagens e respostas ao story → Ferramentas conectadas → Permitir acesso às mensagens → ligar**
+
+<!-- PRINT: tela "Ferramentas conectadas" no app do Instagram com "Permitir acesso às mensagens" ligado -->
+<Print>Tela "Ferramentas conectadas" no app do Instagram com "Permitir acesso às mensagens" ligado.</Print>
+
+## 7. Conecte a conta
+
+Agora [conecte o Instagram](./conectar-instagram). Na tela da Meta, escolha o **portfólio que é dono da conta do Instagram** e marque a conta.
+
+::: warning Portfólio dono, não portfólio compartilhado
+Se a conta do Instagram só está **compartilhada** com o portfólio que você escolher, a Meta recusa com *"The following business assets were not granted the requested permissions"*. Pra saber quem é o dono: em [business.facebook.com](https://business.facebook.com) → **Configurações → Contas do Instagram**, a conta mostra "Isto pertence a ...". Escolha esse portfólio na tela de conectar.
+:::
 
 ## Se seu app é antigo (login do Instagram)
 
@@ -132,7 +121,7 @@ Vale para app criado antes do fim de outubro de 2026, que tem a página **Config
 3. **Testador:** **Funções do app → Funções → Adicionar pessoas → Testador do Instagram** com o @ da sua conta, e aceite no Instagram em **Configurações → Site e apps → Convites de testador**. Sem isso, o login dá "Função de desenvolvedor é insuficiente".
 4. **Webhook:** na seção **Configurar webhooks** dessa página, URL `https://SEU-ENDERECO/webhook` e o token de verificação. Aqui não precisa marcar campos: a instância assina sozinha ao conectar.
 5. **Login e privacidade:** em **Configurar o login da empresa**, adicione a URI `https://SEU-ENDERECO/auth/callback`. Em **Configurações do app → Básico**, URL da Política de Privacidade `https://SEU-ENDERECO/privacy`.
-6. **Publique** o app, como no passo 7.
+6. **Publique** o app, como no passo 5.
 
 No login do Instagram o acesso dura 60 dias e a instância renova sozinha.
 

@@ -57,7 +57,7 @@ No **Painel**, a **Atividade recente** mostra o que chegou e o que foi enviado. 
 
 ## Se não chegou
 
-- O app da Meta está **publicado**? Sem isso, comentário não chega. [Ver como publicar](./app-meta#_7-publique-o-app).
+- O app da Meta está **publicado**? Sem isso, comentário não chega. [Ver como publicar](./app-meta#_5-publique-o-app).
 - Comentou da própria conta? Use outra.
 - A palavra apareceu inteira no comentário?
 - O fluxo e o gatilho estão ativos?

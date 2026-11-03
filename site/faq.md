@@ -10,7 +10,7 @@ Sim. O comenta EU QUERO usa a API oficial do Instagram (com o login unificado da
 
 Na ordem do mais comum:
 
-1. **O app da Meta não está publicado.** Sem publicar, comentário não chega. [Como publicar](/tutoriais/app-meta#_7-publique-o-app).
+1. **O app da Meta não está publicado.** Sem publicar, comentário não chega. [Como publicar](/tutoriais/app-meta#_5-publique-o-app).
 2. **Você comentou da própria conta.** É ignorado de propósito.
 3. **A palavra não apareceu inteira.** "passo" não dispara em "passou"; "livro" não dispara em "livros".
 4. **O fluxo ou o gatilho está desligado.**
