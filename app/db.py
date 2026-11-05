@@ -316,6 +316,9 @@ def init():
         "ALTER TABLE rules ADD COLUMN flow_id INTEGER",  # regra já convertida em fluxo
         "ALTER TABLE triggers ADD COLUMN public_reply TEXT DEFAULT ''",
         "ALTER TABLE triggers ADD COLUMN public_replies TEXT DEFAULT '[]'",
+        # contem = a palavra em qualquer lugar do texto (o de sempre); exata = o texto
+        # é só a palavra. Gatilho que já existia continua como estava.
+        "ALTER TABLE triggers ADD COLUMN modo_palavra TEXT DEFAULT 'contem'",
         # job de envio adiado por rate limit precisa lembrar que a mensagem era uma
         # private reply: sem o comment_id, o replay viraria DM comum, e DM pra quem
         # nunca conversou com a conta a Meta recusa
@@ -1198,21 +1201,32 @@ def _limpa_keywords(keywords) -> list:
     return limpas
 
 
+MODOS_PALAVRA = ("contem", "exata")
+
+
+def _valida_modo_palavra(modo) -> str:
+    if modo not in MODOS_PALAVRA:
+        raise ValueError(f"modo de palavra-chave inválido: {modo}")
+    return modo
+
+
 def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
-                public_replies=None, active=1, keywords_literais=False):
+                public_replies=None, active=1, keywords_literais=False,
+                modo_palavra="contem"):
     """keywords_literais=True grava a lista como veio, sem _limpa_keywords: só a
     migração de regras legadas usa, pra manter o comportamento da v1.9.0."""
+    _valida_modo_palavra(modo_palavra)
     lista = [t for t in (public_replies or []) if (t or "").strip()]
     if not lista and (public_reply or "").strip():
         lista = [public_reply]
     cur = conn().execute(
         """INSERT INTO triggers (flow_id, type, keywords, media_ids, public_reply,
-                                 public_replies, active)
-           VALUES (?,?,?,?,?,?,?)""",
+                                 public_replies, active, modo_palavra)
+           VALUES (?,?,?,?,?,?,?,?)""",
         (flow_id, type_, json.dumps(list(keywords or []) if keywords_literais
                                     else _limpa_keywords(keywords), ensure_ascii=False),
          json.dumps(media_ids or [], ensure_ascii=False), lista[0] if lista else "",
-         json.dumps(lista, ensure_ascii=False), active))
+         json.dumps(lista, ensure_ascii=False), active, modo_palavra))
     conn().commit()
     return cur.lastrowid
 
@@ -1228,6 +1242,14 @@ def set_trigger_active(trigger_id, active: int):
     guardados pra quando religar."""
     conn().execute("UPDATE triggers SET active=? WHERE id=?", (1 if active else 0, trigger_id))
     conn().commit()
+
+
+def set_trigger_modo_palavra(trigger_id, modo) -> bool:
+    """Troca entre "contem" e "exata" sem refazer o gatilho. False = não existe."""
+    _valida_modo_palavra(modo)
+    cur = conn().execute("UPDATE triggers SET modo_palavra=? WHERE id=?", (modo, trigger_id))
+    conn().commit()
+    return cur.rowcount > 0
 
 
 def delete_trigger(trigger_id):

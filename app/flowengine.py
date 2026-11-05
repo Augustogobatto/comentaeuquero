@@ -196,6 +196,19 @@ def _casa(keyword: str, alvo: _Texto) -> int:
     return 0
 
 
+def _casa_inteiro(keyword: str, alvo: _Texto) -> int:
+    """Modo "palavra exata": o texto todo é a palavra-chave. Caixa, acento, espaço,
+    pontuação e emoji não contam ("101 ", "101!", "Blackela" casam), palavra a mais
+    e variação (plural, letra esticada) não casam. Palavra-chave só de emoji ou
+    pontuação compara o texto limpo inteiro; "" nunca casa."""
+    keyword = keyword or ""
+    kw = _tokens_kw(keyword)
+    if kw:
+        return EXATO if alvo.toks == kw else 0
+    limpa = _normaliza(keyword).strip()
+    return EXATO if limpa and alvo.normalizado().strip() == limpa else 0
+
+
 def casa_palavra(keyword: str, texto: str) -> int:
     """0 = não casa, VARIACAO, ou EXATO. Palavra inteira (ou frase inteira, na
     ordem), em qualquer posição do texto. "ia" nunca casa dentro de "dia"."""
@@ -210,19 +223,21 @@ def chave_palavra(keyword: str) -> str:
     return " ".join(_tokens_kw(keyword or "")) or (keyword or "")
 
 
-def _forca(keywords, texto, alvo=None) -> int:
+def _forca(keywords, texto, alvo=None, modo="contem") -> int:
     """Força do gatilho para este texto. Sem palavra-chave = "responde sempre"
     (devolve EXATO, como era: casa com qualquer texto). `alvo` = texto já
-    indexado (_Texto), pra não repetir o trabalho a cada gatilho."""
+    indexado (_Texto), pra não repetir o trabalho a cada gatilho. `modo` = "contem"
+    (a palavra em qualquer lugar do texto) ou "exata" (o texto é só a palavra)."""
     if not keywords:
         return EXATO
     if not texto:
         return 0
     if alvo is None:
         alvo = _Texto(texto)
+    casa = _casa_inteiro if modo == "exata" else _casa
     melhor = 0
     for k in keywords:
-        melhor = max(melhor, _casa(k, alvo))
+        melhor = max(melhor, casa(k, alvo))
         if melhor == EXATO:
             break
     return melhor
@@ -246,7 +261,7 @@ def match_trigger(account_id, tipo, texto, media_id=None):
     for t in db.active_triggers(account_id, tipo):
         if t["media_ids"] and str(media_id or "") not in [str(m) for m in t["media_ids"]]:
             continue
-        forca = _forca(t["keywords"], texto, alvo)
+        forca = _forca(t["keywords"], texto, alvo, t.get("modo_palavra") or "contem")
         if forca:
             candidatos.append((t, forca))
     if not candidatos:

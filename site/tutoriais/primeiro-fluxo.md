@@ -23,6 +23,8 @@ Clique em **Quando começa** e depois em **Adicionar gatilho**:
 
 ::: tip Como a palavra é reconhecida
 Maiúsculas e acentos não importam: "Eu Quero" e "eu quero" disparam igual. A palavra precisa aparecer inteira, em qualquer lugar do comentário: "quero" dispara em "eu quero muito", mas "passo" não dispara em "passou". Plural e letra esticada também valem: "livro" dispara em "livros" e "quero" em "queroo". Sem nenhuma palavra-chave, o gatilho dispara para qualquer comentário.
+
+Quer que dispare só quando a pessoa comentar a palavra e nada mais? No gatilho, troque **Dispara quando** para **é só a palavra (exata)**: "101", "101 " e "101!" disparam; "fazer 101" e "1011" não, e aí não sai nem a resposta pública nem o direct. Maiúsculas, acentos e espaços no começo ou no fim continuam não contando; plural e letra esticada deixam de valer. A troca vale na hora, mesmo com o fluxo ligado.
 :::
 
 ## 3. Adicione a mensagem

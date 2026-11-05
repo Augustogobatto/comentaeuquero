@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do histórico git.
 
+## [1.12.0] - 2026-11-05
+
+### Adicionado — gatilho por palavra exata
+- Cada gatilho agora escolhe entre **contém a palavra** (o de sempre) e **é só a
+  palavra**. No modo exato, "101" dispara e "fazer 101" não: sem resposta pública e
+  sem direct. Maiúscula, acento, espaço nas pontas, pontuação e emoji não contam;
+  plural e letra esticada não valem.
+- Dá pra trocar num gatilho que já existe, com o fluxo ligado, sem refazer nada.
+  Quem não mexer continua como estava. Exportar, importar e o MCP levam a opção junto.
+
 ## [1.11.2] - 2026-11-03
 
 ### Corrigido — conta duplicada e aviso de reconectar

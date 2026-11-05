@@ -329,7 +329,7 @@ watch(() => edges.value.map((e) => [e.source, e.target, e.sourceHandle].join('>'
 
 // ---- gatilhos ----
 const mostrarGatilhos = ref(false)
-const GATILHO_VAZIO = () => ({ type: 'comment', keywords: '', media_ids: [], public_replies: [] })
+const GATILHO_VAZIO = () => ({ type: 'comment', keywords: '', modo_palavra: 'contem', media_ids: [], public_replies: [] })
 const novoGatilho = ref(GATILHO_VAZIO())
 
 async function addGatilho() {
@@ -341,6 +341,7 @@ async function addGatilho() {
       keywords: g.keywords.split(',').map((k) => k.trim()).filter(Boolean),
       media_ids: g.media_ids,
       public_replies: g.public_replies.map((t) => t.trim()).filter(Boolean),
+      modo_palavra: g.modo_palavra,
     },
   })
   if (r) {
@@ -355,6 +356,12 @@ async function alternarGatilho(t) {
   const novo = t.active ? 0 : 1
   const r = await api(`/triggers/${t.id}`, { method: 'PATCH', body: { active: novo } })
   if (r) { t.active = novo; await recarregarGatilhos() }
+}
+
+async function trocarModoPalavra(t, modo) {
+  // vale na hora, mesmo com o fluxo ligado, igual ao botão de ligar e desligar o gatilho
+  const r = await api(`/triggers/${t.id}`, { method: 'PATCH', body: { modo_palavra: modo } })
+  if (r) await recarregarGatilhos()
 }
 
 async function apagarGatilho(id) {
@@ -566,6 +573,14 @@ onMounted(async () => {
               <span class="pill" v-for="k in t.keywords" :key="k">{{ k }}</span>
             </template>
             <span v-else class="obs">qualquer texto</span>
+            <label v-if="t.keywords.length && t.type !== 'wa_template_reply'" class="modo-palavra">
+              Dispara quando
+              <select :value="t.modo_palavra || 'contem'"
+                      @change="trocarModoPalavra(t, $event.target.value)">
+                <option value="contem">contém a palavra</option>
+                <option value="exata">é só a palavra (exata)</option>
+              </select>
+            </label>
             <div v-if="t.media_ids.length" class="obs">
               só em {{ t.media_ids.length }} post{{ t.media_ids.length > 1 ? 's' : '' }}
             </div>
@@ -593,6 +608,15 @@ onMounted(async () => {
         </label>
         <label v-else>Palavras-chave <span class="sub">separadas por vírgula; vazio vale pra qualquer texto</span>
           <input v-model="novoGatilho.keywords" placeholder="aurora, quero aurora" />
+        </label>
+        <label v-if="novoGatilho.type !== 'wa_template_reply' && novoGatilho.keywords.trim()">Dispara quando
+          <span class="sub">{{ novoGatilho.modo_palavra === 'exata'
+            ? 'só o texto com a palavra e nada mais; maiúscula, acento e espaço não contam'
+            : 'a palavra aparece em qualquer lugar do texto' }}</span>
+          <select v-model="novoGatilho.modo_palavra">
+            <option value="contem">contém a palavra</option>
+            <option value="exata">é só a palavra (exata)</option>
+          </select>
         </label>
 
         <template v-if="['comment', 'live_comment'].includes(novoGatilho.type)">
@@ -915,6 +939,11 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px;
 }
 .gatilhos li:last-child { border-bottom: none; }
+.modo-palavra { display: block; margin-top: 6px; font-size: 12px; color: var(--mut); }
+.modo-palavra select {
+  height: 26px; margin-left: 4px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px;
+  font: inherit; font-size: 12px; background: var(--fundo); color: var(--ink);
+}
 .novo { padding: 4px 20px 20px; }
 .novo label { display: block; font-size: 13px; font-weight: 500; margin-top: 16px; }
 .novo input, .novo select {

@@ -37,6 +37,7 @@ const vazio = computed(() => !meta.value.resumo?.(props.data || {}))
         <span class="gat-nome">{{ NOMES_GATILHO[g.type] || g.type }}</span>
         <span v-for="k in g.keywords || []" :key="k" class="gat-kw">{{ k }}</span>
         <span v-if="!(g.keywords || []).length" class="gat-kw solto">qualquer texto</span>
+        <span v-else-if="g.modo_palavra === 'exata'" class="gat-off">exata</span>
         <span v-if="!g.active" class="gat-off">desligado</span>
       </div>
       <div v-if="!(data?.triggers || []).length" class="corpo vazio">

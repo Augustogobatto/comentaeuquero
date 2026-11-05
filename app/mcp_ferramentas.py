@@ -155,7 +155,8 @@ def _gatilho_publico(t) -> dict:
     return {"id": t["id"], "tipo": GATILHO_PARA.get(t["type"], t["type"]),
             "descricao": NOMES_GATILHO.get(t["type"], t["type"]),
             "palavras": t["keywords"], "so_nos_posts": t["media_ids"],
-            "respostas_publicas": t["public_replies"], "ligado": bool(t["active"])}
+            "respostas_publicas": t["public_replies"], "ligado": bool(t["active"]),
+            "palavra_exata": t.get("modo_palavra") == "exata"}
 
 
 # ---------- leitura ----------
@@ -660,7 +661,8 @@ def criar_fluxo(nome: str, gatilho: dict, passos: list[dict]) -> dict:
                                            if (k or "").strip()],
                    media_ids=[m.strip() for m in gatilho.get("so_nos_posts") or [] if m.strip()],
                    public_replies=[r.strip() for r in gatilho.get("respostas_publicas") or []
-                                   if (r or "").strip()])
+                                   if (r or "").strip()],
+                   modo_palavra="exata" if gatilho.get("palavra_exata") else "contem")
     return {"id": fid, "nome": nome, "ligado": False, "passos": len(grafo["nodes"]),
             "avisos": avisos, "abrir_no_editor": _url_editor(fid),
             "proximo_passo": "Fluxo criado DESLIGADO. Quem liga é o usuário, no botão "
@@ -722,7 +724,8 @@ def ligar_desligar_fluxo(fluxo_id: int, ligado: bool) -> dict:
 
 def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
                       so_nos_posts: list[str] | None = None,
-                      respostas_publicas: list[str] | None = None) -> dict:
+                      respostas_publicas: list[str] | None = None,
+                      palavra_exata: bool = False) -> dict:
     conta = _conta()
     f = _fluxo(conta, fluxo_id)
     _barrar_se_no_ar(f, "adicionar o gatilho")
@@ -730,7 +733,8 @@ def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
     tid = db.add_trigger(fluxo_id, tipo_db, keywords=[k.strip() for k in palavras
                                                       if (k or "").strip()],
                          media_ids=[m.strip() for m in so_nos_posts or [] if m.strip()],
-                         public_replies=[r.strip() for r in respostas_publicas or [] if r.strip()])
+                         public_replies=[r.strip() for r in respostas_publicas or [] if r.strip()],
+                         modo_palavra="exata" if palavra_exata else "contem")
     avisos.append("O fluxo está desligado: o gatilho só vale quando o usuário ligar o "
                   f"fluxo no editor ({_url_editor(fluxo_id)}).")
     return {"ok": True, "gatilho_id": tid, "fluxo": f["name"], "avisos": avisos}

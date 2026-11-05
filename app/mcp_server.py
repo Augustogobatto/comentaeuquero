@@ -466,6 +466,10 @@ class Gatilho(Estrito):
     palavras: Annotated[list[Curto], Field(max_length=20, description=
                         "palavras-chave (palavra inteira, sem diferença de acento ou maiúscula). "
                         "Vazio = responde a qualquer mensagem/comentário.")]
+    palavra_exata: Annotated[bool, Field(description=
+                        "true = dispara só quando o texto é apenas a palavra-chave: \"101\" "
+                        "dispara, \"fazer 101\" não, e nem a resposta pública sai. "
+                        "false = dispara se a palavra aparece em qualquer lugar do texto.")] = False
     so_nos_posts: Annotated[list[Annotated[str, Field(max_length=40)]], Field(
         max_length=20, description="ids de posts/Reels; vazio = qualquer post")] = []
     respostas_publicas: Annotated[list[Annotated[str, Field(max_length=300)]], Field(
@@ -511,7 +515,7 @@ def adicionar_gatilho(fluxo_id: Id, gatilho: Gatilho) -> dict[str, Any]:
     live, story, direct, WhatsApp) e/ou outras palavras-chave. Avisa se a palavra já
     dispara outro fluxo. Fluxo ligado não muda por aqui: a resposta traz o link do editor."""
     return F.adicionar_gatilho(fluxo_id, gatilho.tipo, gatilho.palavras, gatilho.so_nos_posts,
-                               gatilho.respostas_publicas)
+                               gatilho.respostas_publicas, gatilho.palavra_exata)
 
 
 @_ferramenta("escrita", "Etiquetar lead")

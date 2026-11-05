@@ -286,6 +286,7 @@ class TriggerIn(BaseModel):
     public_reply: str = ""
     public_replies: list[str] = []
     active: int = 1
+    modo_palavra: str = "contem"   # contem | exata
 
 
 # ---------- rotas ----------
@@ -359,20 +360,34 @@ def criar_trigger(flow_id: int, body: TriggerIn):
     try:
         tid = db.add_trigger(flow_id, body.type, keywords=body.keywords,
                              media_ids=body.media_ids, public_reply=body.public_reply,
-                             public_replies=body.public_replies, active=body.active)
-    except ValueError as e:   # palavra-chave só de espaços
+                             public_replies=body.public_replies, active=body.active,
+                             modo_palavra=body.modo_palavra)
+    except ValueError as e:   # palavra-chave só de espaços ou modo inválido
         raise HTTPException(400, str(e))
     return {"id": tid}
 
 
 class TriggerPatch(BaseModel):
-    active: int
+    active: int | None = None
+    modo_palavra: str | None = None
 
 
 @router.patch("/triggers/{trigger_id}")
 def alternar_trigger(trigger_id: int, body: TriggerPatch):
-    db.set_trigger_active(trigger_id, body.active)
-    return {"ok": True, "active": 1 if body.active else 0}
+    if body.active is None and body.modo_palavra is None:
+        raise HTTPException(400, "nada para alterar")
+    resposta = {"ok": True}
+    if body.modo_palavra is not None:
+        try:
+            if not db.set_trigger_modo_palavra(trigger_id, body.modo_palavra):
+                raise HTTPException(404, "gatilho não encontrado")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        resposta["modo_palavra"] = body.modo_palavra
+    if body.active is not None:
+        db.set_trigger_active(trigger_id, body.active)
+        resposta["active"] = 1 if body.active else 0
+    return resposta
 
 
 @router.delete("/triggers/{trigger_id}")
@@ -394,7 +409,8 @@ def exportar(flow_id: int):
         "entry_node": flow["entry_node"],
         "graph": flow["graph"],
         "triggers": [{k: t[k] for k in ("type", "keywords", "media_ids",
-                                        "public_reply", "public_replies", "active")}
+                                        "public_reply", "public_replies", "active",
+                                        "modo_palavra")}
                      for t in db.list_triggers(flow_id)],
     }
 
@@ -415,10 +431,11 @@ def importar(body: dict):
                            media_ids=t.get("media_ids") or [],
                            public_reply=t.get("public_reply", ""),
                            public_replies=t.get("public_replies") or [],
-                           active=t.get("active", 1))
+                           active=t.get("active", 1),
+                           modo_palavra=t.get("modo_palavra") or "contem")
         except ValueError:
             # só espaços: virar pega-tudo roubaria o evento dos outros fluxos
-            avisos.append("Um gatilho só com palavra-chave em branco (ou inválida) foi ignorado. "
+            avisos.append("Um gatilho com palavra-chave em branco (ou configuração inválida) foi ignorado. "
                           "Crie de novo com a palavra certa.")
     return {"id": fid, "avisos": avisos,
             "aviso_geral": "Fluxo importado desligado. Revise e ative quando quiser."}
