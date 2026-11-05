@@ -122,8 +122,21 @@ def _plurais(t: str) -> frozenset:
     return frozenset(p for p in _gera_plurais(t) if p not in _INVARIAVEIS)
 
 
-_SO_PALAVRAS = re.compile(r"[\w ]+")
-_SOBRA_NAS_PONTAS = re.compile(r"^[^\w@#]+|[^\w@#]+$")
+_PONTUACAO_LEVE = " !?.,;:…¡¿"
+_MARCA_PERFIL = "@#＠＃"   # "@ebook" é marcar um perfil, não pedir o ebook
+
+
+def _tira_pontas(s: str) -> str:
+    """Tira das pontas o que não é letra, número, "_" ou marca de perfil. Laço e não
+    regex: comentário de milhares de "!" não pode segurar o cadeado do motor."""
+    def fica(c):
+        return c.isalnum() or c == "_" or c in _MARCA_PERFIL
+    i, j = 0, len(s)
+    while i < j and not fica(s[i]):
+        i += 1
+    while j > i and not fica(s[j - 1]):
+        j -= 1
+    return s[i:j]
 
 
 def _limpa_exata(s) -> str:
@@ -136,7 +149,7 @@ def _limpa_exata(s) -> str:
 class _Texto:
     """Texto do evento tokenizado e indexado UMA vez; cada palavra-chave de cada
     gatilho consulta o índice em vez de varrer o texto de novo."""
-    __slots__ = ("bruto", "toks", "_pos", "_est", "_var", "_cache", "_norm", "_limpo")
+    __slots__ = ("bruto", "toks", "_pos", "_est", "_var", "_cache", "_norm", "_limpo", "_pontas")
 
     def __init__(self, texto):
         self.bruto = texto or ""
@@ -149,6 +162,12 @@ class _Texto:
         self._cache = {}
         self._norm = None
         self._limpo = None
+        self._pontas = None
+
+    def sem_pontas(self):
+        if self._pontas is None:
+            self._pontas = _tira_pontas(self.limpo_exata())
+        return self._pontas
 
     def limpo_exata(self):
         if self._limpo is None:
@@ -214,19 +233,27 @@ def _casa(keyword: str, alvo: _Texto) -> int:
     return 0
 
 
+def chave_exata(keyword) -> str:
+    """Palavra-chave como o modo exato compara: pontuação leve nas pontas não conta,
+    então "quero!" e "quero" são a mesma."""
+    limpa = _limpa_exata(keyword)
+    return limpa.strip(_PONTUACAO_LEVE) or limpa
+
+
 def _casa_inteiro(keyword: str, alvo: _Texto) -> int:
     """Modo "palavra exata": o texto todo é a palavra-chave, sem plural nem letra
-    esticada. Caixa, acento e espaço nunca contam. Palavra-chave só de letras e
-    números aceita pontuação e emoji nas pontas ("101!", "101 🙏"), mas não @ e #:
-    "@ebook" é marcar um perfil, não pedir o ebook. Palavra-chave com símbolo ("+1",
-    "c++", "🙏") compara o texto inteiro, porque o símbolo faz parte dela."""
-    kw = _limpa_exata(keyword)
+    esticada. Caixa, acento e espaço nunca contam. Palavra-chave que começa e termina
+    em letra ou número ("101", "e-book") aceita pontuação e emoji nas pontas ("101!",
+    "101 🙏"), mas não @ e #: "@ebook" é marcar um perfil, não pedir o ebook. Com
+    símbolo na ponta ("+1", "c++", "🙏"), o símbolo faz parte dela: só a pontuação
+    leve pode sobrar."""
+    kw = chave_exata(keyword)
     if not kw:
         return 0
+    if kw[0].isalnum() and kw[-1].isalnum():
+        return EXATO if alvo.sem_pontas() == kw else 0
     texto = alvo.limpo_exata()
-    if _SO_PALAVRAS.fullmatch(kw):
-        texto = _SOBRA_NAS_PONTAS.sub("", texto)
-    return EXATO if texto == kw else 0
+    return EXATO if texto == kw or (texto.strip(_PONTUACAO_LEVE) or texto) == kw else 0
 
 
 def casa_palavra(keyword: str, texto: str) -> int:

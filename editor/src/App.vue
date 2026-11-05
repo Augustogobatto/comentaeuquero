@@ -342,7 +342,7 @@ async function addGatilho() {
       media_ids: g.media_ids,
       public_replies: g.public_replies.map((t) => t.trim()).filter(Boolean),
       // o seletor some nesses dois casos: o valor escolhido antes não pode ir escondido
-      modo_palavra: g.type !== 'wa_template_reply' && g.keywords.trim() ? g.modo_palavra : 'contem',
+      modo_palavra: g.type !== 'wa_template_reply' && temPalavra(g.keywords) ? g.modo_palavra : 'contem',
     },
   })
   if (r) {
@@ -359,11 +359,14 @@ async function alternarGatilho(t) {
   if (r) { t.active = novo; await recarregarGatilhos() }
 }
 
-async function trocarModoPalavra(t, modo) {
+async function trocarModoPalavra(t, ev) {
   // vale na hora, mesmo com o fluxo ligado, igual ao botão de ligar e desligar o gatilho
-  const r = await api(`/triggers/${t.id}`, { method: 'PATCH', body: { modo_palavra: modo } })
+  const r = await api(`/triggers/${t.id}`, { method: 'PATCH', body: { modo_palavra: ev.target.value } })
   if (r) await recarregarGatilhos()
+  else ev.target.value = t.modo_palavra || 'contem'
 }
+
+const temPalavra = (texto) => texto.split(',').some((k) => k.trim())
 
 async function apagarGatilho(id) {
   await api(`/triggers/${id}`, { method: 'DELETE' })
@@ -577,7 +580,7 @@ onMounted(async () => {
             <label v-if="t.keywords.some((k) => k.trim()) && t.type !== 'wa_template_reply'" class="modo-palavra">
               Dispara quando
               <select :value="t.modo_palavra || 'contem'"
-                      @change="trocarModoPalavra(t, $event.target.value)">
+                      @change="trocarModoPalavra(t, $event)">
                 <option value="contem">contém a palavra</option>
                 <option value="exata">é só a palavra (exata)</option>
               </select>
@@ -610,7 +613,7 @@ onMounted(async () => {
         <label v-else>Palavras-chave <span class="sub">separadas por vírgula; vazio vale pra qualquer texto</span>
           <input v-model="novoGatilho.keywords" placeholder="aurora, quero aurora" />
         </label>
-        <label v-if="novoGatilho.type !== 'wa_template_reply' && novoGatilho.keywords.trim()">Dispara quando
+        <label v-if="novoGatilho.type !== 'wa_template_reply' && temPalavra(novoGatilho.keywords)">Dispara quando
           <span class="sub">{{ novoGatilho.modo_palavra === 'exata'
             ? 'só o comentário com a palavra e nenhuma outra; maiúscula, acento e espaço não contam'
             : 'a palavra aparece em qualquer lugar do texto' }}</span>

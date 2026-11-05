@@ -635,11 +635,17 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None,
     # outro nunca dispara por ela. Variação ("livro" x "livros") não entra: escrita
     # igual ganha de variação e cada fluxo segue com a sua.
     minhas = {flowengine.chave_palavra(k): k for k in limpas}
+    minhas_exatas = {flowengine.chave_exata(k): k for k in limpas}
     for t in db.active_triggers(conta["id"], tipo_db):
         if t["flow_id"] == fluxo_id:
             continue
-        delas = {flowengine.chave_palavra(k) for k in t["keywords"]}
-        repetidas = sorted(minhas[c] for c in minhas.keys() & delas)
+        if palavra_exata and t.get("modo_palavra") == "exata":
+            # no exato "+1" e "-1" são gatilhos diferentes
+            delas = {flowengine.chave_exata(k) for k in t["keywords"]}
+            repetidas = sorted(minhas_exatas[c] for c in minhas_exatas.keys() & delas)
+        else:
+            delas = {flowengine.chave_palavra(k) for k in t["keywords"]}
+            repetidas = sorted(minhas[c] for c in minhas.keys() & delas)
         if repetidas and t.get("modo_palavra") == "exata" and not palavra_exata:
             avisos.append(f"Quando o texto for só {', '.join(repetidas)}, vale o fluxo "
                           f"'{t['flow_name']}', criado antes. Este dispara quando vier "

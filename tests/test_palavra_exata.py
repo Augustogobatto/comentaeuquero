@@ -52,6 +52,17 @@ def _gatilho(conta, keywords, modo="exata", nome=None, tipo="comment", **kw):
     ("c++", "C++ ", True),
     ("10.1", "10 1", False),
     ("10.1", "10.1", True),
+    ("10.1", "10.1!", True),
+    ("e-book", "E-book!", True),
+    ("e-book", "e-book 🙏", True),
+    ("e-book", "e book", False),
+    ("quero!", "quero", True),
+    ("quero!", "QUERO!!", True),
+    ("sim.", "sim", True),
+    ("🙏", "🙏!", True),
+    ("ebook", "＠ebook", False),
+    ("!!", "!!", True),
+    ("!!", "oi", False),
     ("", "qualquer coisa", False),
     ("", "   ", False),
 ])
@@ -193,3 +204,11 @@ def test_sem_palavra_ou_botao_nunca_ficam_exata(tipo, keywords):
         api.alternar_trigger(tid, api.TriggerPatch(modo_palavra="exata"))
     assert e.value.status_code == 400
     assert db.list_triggers(f)[0]["modo_palavra"] == "contem"
+
+
+def test_texto_longo_de_pontuacao_nao_trava():
+    import time
+    texto = "a" + "!" * 4000 + "a"
+    t0 = time.perf_counter()
+    assert not flowengine._forca(["k%d" % i for i in range(30)], texto, modo="exata")
+    assert time.perf_counter() - t0 < 0.5
