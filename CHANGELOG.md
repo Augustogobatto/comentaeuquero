@@ -8,8 +8,8 @@ Versões seguem `vMAJOR.MINOR.PATCH`. Reconstruído a partir das tags e do hist�
 ### Adicionado — gatilho por palavra exata
 - Cada gatilho agora escolhe entre **contém a palavra** (o de sempre) e **é só a
   palavra**. No modo exato, "101" dispara e "fazer 101" não: sem resposta pública e
-  sem direct. Maiúscula, acento, espaço nas pontas, pontuação e emoji não contam;
-  plural e letra esticada não valem.
+  sem direct. Maiúscula, acento, espaço e pontuação ou emoji nas pontas não contam;
+  plural, letra esticada e marcação ("@101", "#101") não valem.
 - Dá pra trocar num gatilho que já existe, com o fluxo ligado, sem refazer nada.
   Quem não mexer continua como estava. Exportar, importar e o MCP levam a opção junto.
 

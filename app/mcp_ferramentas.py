@@ -612,7 +612,8 @@ def compilar_passos(passos: list[dict], wa_ligado: bool) -> dict:
     return {"nodes": nos, "edges": arestas, "entry_node": nos[0]["id"]}
 
 
-def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tuple[str, list]:
+def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None,
+                     palavra_exata=False) -> tuple[str, list]:
     tipo_db = GATILHO_DE.get(tipo)
     if not tipo_db:
         raise ErroFerramenta(f"Gatilho inválido: use {', '.join(GATILHO_DE)}.")
@@ -623,6 +624,8 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tu
         # [" "] virava [] = responde a tudo, burlando a trava do db
         raise ErroFerramenta("As palavras-chave vieram em branco. Mande pelo menos uma "
                              "palavra, ou uma lista vazia se quiser mesmo responder a tudo.")
+    if palavra_exata and not limpas:
+        raise ErroFerramenta("Palavra exata precisa de pelo menos uma palavra-chave.")
     avisos = []
     if not limpas:
         avisos.append("Gatilho sem palavra-chave responde a QUALQUER "
@@ -637,7 +640,11 @@ def _validar_gatilho(conta, tipo: str, palavras: list[str], fluxo_id=None) -> tu
             continue
         delas = {flowengine.chave_palavra(k) for k in t["keywords"]}
         repetidas = sorted(minhas[c] for c in minhas.keys() & delas)
-        if repetidas:
+        if repetidas and t.get("modo_palavra") == "exata" and not palavra_exata:
+            avisos.append(f"Quando o texto for só {', '.join(repetidas)}, vale o fluxo "
+                          f"'{t['flow_name']}', criado antes. Este dispara quando vier "
+                          "junto de outras palavras.")
+        elif repetidas:
             avisos.append(f"A palavra {', '.join(repetidas)} já dispara o fluxo "
                           f"'{t['flow_name']}'. Com a mesma palavra nos dois, vale o "
                           "gatilho criado primeiro e o outro nunca dispara por ela.")
@@ -652,7 +659,8 @@ def criar_fluxo(nome: str, gatilho: dict, passos: list[dict]) -> dict:
     # o nome do fluxo é a chave das métricas (events.rule_keyword): repetir mistura os números
     if any(f["name"].strip().lower() == nome.lower() for f in db.list_flows(conta["id"])):
         raise ErroFerramenta(f"Já existe um fluxo chamado '{nome}'. Escolha outro nome.")
-    tipo_db, avisos = _validar_gatilho(conta, gatilho.get("tipo", ""), gatilho.get("palavras") or [])
+    tipo_db, avisos = _validar_gatilho(conta, gatilho.get("tipo", ""), gatilho.get("palavras") or [],
+                                       palavra_exata=gatilho.get("palavra_exata", False))
     grafo = compilar_passos(passos, whatsapp.configurado(conta))
     entrada = grafo.pop("entry_node")
     avisos += api.validar_grafo(grafo)
@@ -729,7 +737,8 @@ def adicionar_gatilho(fluxo_id: int, tipo: str, palavras: list[str],
     conta = _conta()
     f = _fluxo(conta, fluxo_id)
     _barrar_se_no_ar(f, "adicionar o gatilho")
-    tipo_db, avisos = _validar_gatilho(conta, tipo, palavras, fluxo_id=fluxo_id)
+    tipo_db, avisos = _validar_gatilho(conta, tipo, palavras, fluxo_id=fluxo_id,
+                                       palavra_exata=palavra_exata)
     tid = db.add_trigger(fluxo_id, tipo_db, keywords=[k.strip() for k in palavras
                                                       if (k or "").strip()],
                          media_ids=[m.strip() for m in so_nos_posts or [] if m.strip()],

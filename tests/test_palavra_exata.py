@@ -38,6 +38,20 @@ def _gatilho(conta, keywords, modo="exata", nome=None, tipo="comment", **kw):
     ("🙏", "🙏", True),
     ("🙏", " 🙏 ", True),
     ("🙏", "oi 🙏", False),
+    ("ebook", "@ebook", False),
+    ("ebook", "#ebook", False),
+    ("ebook", "EBOOK?!", True),
+    ("ebook", "Ébook 🔥🔥", True),
+    ("ebook", "\u200bebook\u00a0", True),
+    ("eu quero", "eu 🙏 quero", False),
+    ("eu quero", "eu-quero", False),
+    ("+1", "-1", False),
+    ("+1", "1", False),
+    ("+1", "+1", True),
+    ("c++", "c#", False),
+    ("c++", "C++ ", True),
+    ("10.1", "10 1", False),
+    ("10.1", "10.1", True),
     ("", "qualquer coisa", False),
     ("", "   ", False),
 ])
@@ -163,3 +177,19 @@ def test_importar_json_antigo_fica_contem():
     del dump["triggers"][0]["modo_palavra"]
     dump["name"] = uuid.uuid4().hex
     assert db.list_triggers(api.importar(dump)["id"])[0]["modo_palavra"] == "contem"
+
+
+@pytest.mark.parametrize("tipo,keywords", [
+    ("comment", []),
+    ("comment", [""]),
+    ("wa_template_reply", ["Quero saber"]),
+])
+def test_sem_palavra_ou_botao_nunca_ficam_exata(tipo, keywords):
+    conta = _conta()
+    f = db.create_flow(conta["id"], name=uuid.uuid4().hex, active=1)
+    tid = db.add_trigger(f, tipo, keywords=keywords, modo_palavra="exata")
+    assert db.list_triggers(f)[0]["modo_palavra"] == "contem"
+    with pytest.raises(HTTPException) as e:
+        api.alternar_trigger(tid, api.TriggerPatch(modo_palavra="exata"))
+    assert e.value.status_code == 400
+    assert db.list_triggers(f)[0]["modo_palavra"] == "contem"

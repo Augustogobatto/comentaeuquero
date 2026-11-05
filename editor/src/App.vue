@@ -341,7 +341,8 @@ async function addGatilho() {
       keywords: g.keywords.split(',').map((k) => k.trim()).filter(Boolean),
       media_ids: g.media_ids,
       public_replies: g.public_replies.map((t) => t.trim()).filter(Boolean),
-      modo_palavra: g.modo_palavra,
+      // o seletor some nesses dois casos: o valor escolhido antes não pode ir escondido
+      modo_palavra: g.type !== 'wa_template_reply' && g.keywords.trim() ? g.modo_palavra : 'contem',
     },
   })
   if (r) {
@@ -573,7 +574,7 @@ onMounted(async () => {
               <span class="pill" v-for="k in t.keywords" :key="k">{{ k }}</span>
             </template>
             <span v-else class="obs">qualquer texto</span>
-            <label v-if="t.keywords.length && t.type !== 'wa_template_reply'" class="modo-palavra">
+            <label v-if="t.keywords.some((k) => k.trim()) && t.type !== 'wa_template_reply'" class="modo-palavra">
               Dispara quando
               <select :value="t.modo_palavra || 'contem'"
                       @change="trocarModoPalavra(t, $event.target.value)">
@@ -611,7 +612,7 @@ onMounted(async () => {
         </label>
         <label v-if="novoGatilho.type !== 'wa_template_reply' && novoGatilho.keywords.trim()">Dispara quando
           <span class="sub">{{ novoGatilho.modo_palavra === 'exata'
-            ? 'só o texto com a palavra e nada mais; maiúscula, acento e espaço não contam'
+            ? 'só o comentário com a palavra e nenhuma outra; maiúscula, acento e espaço não contam'
             : 'a palavra aparece em qualquer lugar do texto' }}</span>
           <select v-model="novoGatilho.modo_palavra">
             <option value="contem">contém a palavra</option>

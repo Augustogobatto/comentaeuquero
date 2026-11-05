@@ -15,6 +15,7 @@ enviar, nunca responder a si mesmo nem a echo.
 """
 import functools
 import re
+import unicodedata
 
 from . import db, instagram, runtime
 from .texto import sem_acento
@@ -121,10 +122,21 @@ def _plurais(t: str) -> frozenset:
     return frozenset(p for p in _gera_plurais(t) if p not in _INVARIAVEIS)
 
 
+_SO_PALAVRAS = re.compile(r"[\w ]+")
+_SOBRA_NAS_PONTAS = re.compile(r"^[^\w@#]+|[^\w@#]+$")
+
+
+def _limpa_exata(s) -> str:
+    """Minúsculo, sem acento, sem caractere invisível, com um espaço entre palavras."""
+    sem_invisivel = "".join(c for c in _normaliza(s or "")
+                            if unicodedata.category(c) != "Cf")
+    return " ".join(sem_invisivel.split())
+
+
 class _Texto:
     """Texto do evento tokenizado e indexado UMA vez; cada palavra-chave de cada
     gatilho consulta o índice em vez de varrer o texto de novo."""
-    __slots__ = ("bruto", "toks", "_pos", "_est", "_var", "_cache", "_norm")
+    __slots__ = ("bruto", "toks", "_pos", "_est", "_var", "_cache", "_norm", "_limpo")
 
     def __init__(self, texto):
         self.bruto = texto or ""
@@ -136,6 +148,12 @@ class _Texto:
         self._est = None
         self._cache = {}
         self._norm = None
+        self._limpo = None
+
+    def limpo_exata(self):
+        if self._limpo is None:
+            self._limpo = _limpa_exata(self.bruto)
+        return self._limpo
 
     def normalizado(self):
         if self._norm is None:
@@ -197,16 +215,18 @@ def _casa(keyword: str, alvo: _Texto) -> int:
 
 
 def _casa_inteiro(keyword: str, alvo: _Texto) -> int:
-    """Modo "palavra exata": o texto todo é a palavra-chave. Caixa, acento, espaço,
-    pontuação e emoji não contam ("101 ", "101!", "Blackela" casam), palavra a mais
-    e variação (plural, letra esticada) não casam. Palavra-chave só de emoji ou
-    pontuação compara o texto limpo inteiro; "" nunca casa."""
-    keyword = keyword or ""
-    kw = _tokens_kw(keyword)
-    if kw:
-        return EXATO if alvo.toks == kw else 0
-    limpa = _normaliza(keyword).strip()
-    return EXATO if limpa and alvo.normalizado().strip() == limpa else 0
+    """Modo "palavra exata": o texto todo é a palavra-chave, sem plural nem letra
+    esticada. Caixa, acento e espaço nunca contam. Palavra-chave só de letras e
+    números aceita pontuação e emoji nas pontas ("101!", "101 🙏"), mas não @ e #:
+    "@ebook" é marcar um perfil, não pedir o ebook. Palavra-chave com símbolo ("+1",
+    "c++", "🙏") compara o texto inteiro, porque o símbolo faz parte dela."""
+    kw = _limpa_exata(keyword)
+    if not kw:
+        return 0
+    texto = alvo.limpo_exata()
+    if _SO_PALAVRAS.fullmatch(kw):
+        texto = _SOBRA_NAS_PONTAS.sub("", texto)
+    return EXATO if texto == kw else 0
 
 
 def casa_palavra(keyword: str, texto: str) -> int:

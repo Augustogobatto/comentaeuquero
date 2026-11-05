@@ -1210,12 +1210,21 @@ def _valida_modo_palavra(modo) -> str:
     return modo
 
 
+def _aceita_exata(type_, keywords) -> bool:
+    """Sem palavra é "responde sempre" e botão de template manda o texto do botão:
+    nos dois, "só a palavra" não significa nada ou quebraria o gatilho."""
+    return type_ != "wa_template_reply" and any(str(k or "").strip() for k in keywords or [])
+
+
 def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
                 public_replies=None, active=1, keywords_literais=False,
                 modo_palavra="contem"):
     """keywords_literais=True grava a lista como veio, sem _limpa_keywords: só a
     migração de regras legadas usa, pra manter o comportamento da v1.9.0."""
     _valida_modo_palavra(modo_palavra)
+    keywords = list(keywords or []) if keywords_literais else _limpa_keywords(keywords)
+    if not _aceita_exata(type_, keywords):
+        modo_palavra = "contem"
     lista = [t for t in (public_replies or []) if (t or "").strip()]
     if not lista and (public_reply or "").strip():
         lista = [public_reply]
@@ -1223,8 +1232,7 @@ def add_trigger(flow_id, type_, keywords=None, media_ids=None, public_reply="",
         """INSERT INTO triggers (flow_id, type, keywords, media_ids, public_reply,
                                  public_replies, active, modo_palavra)
            VALUES (?,?,?,?,?,?,?,?)""",
-        (flow_id, type_, json.dumps(list(keywords or []) if keywords_literais
-                                    else _limpa_keywords(keywords), ensure_ascii=False),
+        (flow_id, type_, json.dumps(keywords, ensure_ascii=False),
          json.dumps(media_ids or [], ensure_ascii=False), lista[0] if lista else "",
          json.dumps(lista, ensure_ascii=False), active, modo_palavra))
     conn().commit()
@@ -1247,9 +1255,15 @@ def set_trigger_active(trigger_id, active: int):
 def set_trigger_modo_palavra(trigger_id, modo) -> bool:
     """Troca entre "contem" e "exata" sem refazer o gatilho. False = não existe."""
     _valida_modo_palavra(modo)
-    cur = conn().execute("UPDATE triggers SET modo_palavra=? WHERE id=?", (modo, trigger_id))
+    r = conn().execute("SELECT * FROM triggers WHERE id=?", (trigger_id,)).fetchone()
+    if not r:
+        return False
+    t = _trigger_row(r)
+    if modo == "exata" and not _aceita_exata(t["type"], t["keywords"]):
+        raise ValueError("este gatilho não tem palavra-chave para comparar")
+    conn().execute("UPDATE triggers SET modo_palavra=? WHERE id=?", (modo, trigger_id))
     conn().commit()
-    return cur.rowcount > 0
+    return True
 
 
 def delete_trigger(trigger_id):
